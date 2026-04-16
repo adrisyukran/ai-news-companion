@@ -9,7 +9,7 @@ import os
 # nano-gpt API Configuration
 NANO_GPT_API_URL = "https://nano-gpt.com/api/v1"
 NANO_GPT_API_KEY = os.environ.get("NANO_GPT_API_KEY", "")  # Set via environment variable
-NANO_GPT_MODEL = "nano-gpt"  # Default model
+NANO_GPT_MODEL = "openai/gpt-oss-120b"  # Default model
 
 # Chunking Configuration (per docs/init.md)
 CHUNK_SIZE_TOKENS = 2000
