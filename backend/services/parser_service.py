@@ -104,11 +104,30 @@ class ParserService:
         """
         logger.debug(f"Parsing URL: {url}")
         try:
-            # Fetch the URL with a common user agent
+            # Fetch the URL with realistic browser headers to avoid bot detection
             headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Accept-Encoding': 'gzip, deflate, br',
+                'Connection': 'keep-alive',
+                'Upgrade-Insecure-Requests': '1',
+                'Sec-Fetch-Dest': 'document',
+                'Sec-Fetch-Mode': 'navigate',
+                'Sec-Fetch-Site': 'none',
+                'Sec-Fetch-User': '?1',
+                'Cache-Control': 'max-age=0',
             }
             response = requests.get(url, headers=headers, timeout=30)
+            
+            # Handle HTTP errors with specific messages
+            if response.status_code == 403:
+                raise ParserError(f"Access forbidden (403) for URL: {url}. The site may be blocking automated requests.")
+            elif response.status_code == 404:
+                raise ParserError(f"Page not found (404) for URL: {url}")
+            elif response.status_code >= 500:
+                raise ParserError(f"Server error ({response.status_code}) for URL: {url}")
+            
             response.raise_for_status()
             
             # Parse HTML content
