@@ -112,3 +112,56 @@ class ErrorResponse(BaseModel):
     """Response schema for error responses."""
     error: str = Field(description="Error message")
     detail: Optional[str] = Field(default=None, description="Detailed error information")
+
+
+class TranslateRequest(BaseModel):
+    """
+    Request schema for BM↔English translation.
+    
+    Supports bidirectional translation between:
+    - English (en)
+    - Bahasa Melayu (bm)
+    """
+    text: str = Field(
+        description="Text content to translate",
+        min_length=1,
+        max_length=10000,
+        examples=["The Prime Minister announced new economic policies today."]
+    )
+    source_lang: str = Field(
+        description="Source language code",
+        pattern="^(en|bm)$",
+        examples=["en", "bm"]
+    )
+    target_lang: str = Field(
+        description="Target language code",
+        pattern="^(en|bm)$",
+        examples=["bm", "en"]
+    )
+    
+    @field_validator('source_lang', 'target_lang', mode='before')
+    @classmethod
+    def normalize_language_code(cls, v):
+        """Normalize language codes to lowercase."""
+        if isinstance(v, str):
+            return v.lower().strip()
+        return v
+
+
+class TranslateResponse(BaseModel):
+    """
+    Response schema for translation.
+    
+    Contains the translated text with tone/style preservation.
+    """
+    translated_text: str = Field(
+        description="Translated text preserving news style tone",
+        min_length=1,
+        max_length=15000,
+        examples=["Perdana Menteri mengumumkan dasar ekonomi baharu hari ini."]
+    )
+    maintained_tone: str = Field(
+        description="Indicator that news style was maintained",
+        default="news",
+        examples=["news"]
+    )
