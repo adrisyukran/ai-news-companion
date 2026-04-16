@@ -83,14 +83,15 @@ ARTICLE:
 MEDIUM SUMMARY (3-5 lines):"""
 
     HEADLINE_PROMPT = """Based on the following article, create a SINGLE COMPELLING HEADLINE.
-The headline should be news-style, informative, and engaging.
+The headline MUST be non-empty (at least 1 character) and should be news-style, informative, and engaging.
+If you cannot create a headline from the article content, respond with a brief descriptive phrase.
 
 ARTICLE:
 ---
 {article_text}
 ---
 
-HEADLINE (single line only, no quotation marks):"""
+HEADLINE (single line only, no quotation marks, MUST be non-empty):"""
 
     # Prompt for summarizing individual chunks (first stage of chunked summarization)
     CHUNK_SUMMARY_PROMPT = """Summarize the following article excerpt in 2-3 sentences.
@@ -108,6 +109,7 @@ SUMMARY:"""
     COMBINED_SUMMARY_PROMPT = """Based on the following partial summaries of an article, create the final summaries.
 Each partial summary covers a different section of the article.
 Combine ALL information from all partial summaries.
+IMPORTANT: The HEADLINE MUST be non-empty (at least 1 character).
 
 PARTIAL SUMMARIES:
 ---
@@ -122,7 +124,7 @@ Now create the final summaries:
 2. MEDIUM SUMMARY (3-5 lines with more detail):
 [Your medium summary here]
 
-3. HEADLINE (single compelling headline, no quotation marks):
+3. HEADLINE (single compelling headline, no quotation marks, MUST be non-empty):
 [Your headline here]"""
 
     def __init__(
@@ -329,6 +331,15 @@ Now create the final summaries:
         if not medium_summary:
             medium_summary = short_summary
         
+        # Final fallback for empty headline - MUST never return empty string
+        if not headline or not headline.strip():
+            # Use first few words of short_summary as fallback headline
+            if short_summary and short_summary.strip():
+                words = short_summary.split()[:8]
+                headline = ' '.join(words) + ('...' if len(short_summary.split()) > 8 else '')
+            else:
+                headline = "News Summary"
+        
         return short_summary, medium_summary, headline
     
     def _extract_headline(self, text: str) -> str:
@@ -385,6 +396,15 @@ Now create the final summaries:
             max_tokens=50,
         )
         headline = headline_response.content.strip()
+        
+        # Fallback for empty headline - MUST never return empty string
+        if not headline or not headline.strip():
+            # Use first few words of short_summary as fallback headline
+            if short_summary and short_summary.strip():
+                words = short_summary.split()[:8]
+                headline = ' '.join(words) + ('...' if len(short_summary.split()) > 8 else '')
+            else:
+                headline = "News Summary"
         
         return short_summary, medium_summary, headline
     
