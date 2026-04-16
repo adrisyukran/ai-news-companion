@@ -14,6 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend.config import APP_NAME, APP_VERSION, DEBUG
 from backend.routers.summarize import router as summarize_router
+from backend.routers.translate import router as translate_router
 
 # Configure logging
 logging.basicConfig(
@@ -57,6 +58,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(summarize_router)
+app.include_router(translate_router)
 
 
 @app.get("/", tags=["root"])
