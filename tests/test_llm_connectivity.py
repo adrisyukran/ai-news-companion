@@ -12,12 +12,15 @@ import asyncio
 import os
 import sys
 
+import pytest
+
 # Add backend to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from backend.services.llm_service import NanoGPTService
 
 
+@pytest.mark.asyncio
 async def test_connectivity():
     """Test basic API connectivity."""
     print("=" * 60)
