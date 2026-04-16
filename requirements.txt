@@ -1,0 +1,32 @@
+# AI News Companion - Dependencies
+
+# Web Framework
+fastapi>=0.109.0
+uvicorn>=0.27.0
+
+# HTTP Client
+httpx>=0.26.0
+
+# Data Validation
+pydantic>=2.5.0
+
+# HTML Parsing
+beautifulsoup4>=4.12.0
+
+# LLM & RAG
+langchain>=0.1.0
+langchain-community>=0.0.10
+
+# Vector Store
+chromadb>=0.4.0
+
+# Document Processing
+python-docx>=1.1.0
+PyPDF2>=3.0.0
+
+# Testing
+pytest>=7.4.0
+pytest-asyncio>=0.23.0
+
+# Utilities
+python-multipart>=0.0.6
