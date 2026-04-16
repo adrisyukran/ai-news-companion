@@ -165,3 +165,40 @@ class TranslateResponse(BaseModel):
         default="news",
         examples=["news"]
     )
+
+
+class ChatRequest(BaseModel):
+    """
+    Request schema for RAG-based chat about articles.
+    
+    Allows users to ask questions about previously loaded article content.
+    """
+    session_id: str = Field(
+        description="Unique session identifier (UUID) for tracking conversation",
+        pattern="^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$",
+        examples=["550e8400-e29b-41d4-a716-446655440000"]
+    )
+    question: str = Field(
+        description="Question about the article content",
+        min_length=1,
+        max_length=2000,
+        examples=["What is the main topic of this article?"]
+    )
+
+
+class ChatResponse(BaseModel):
+    """
+    Response schema for RAG-based chat.
+    
+    Contains the generated answer based on retrieved article context.
+    """
+    answer: str = Field(
+        description="Answer generated from article context",
+        min_length=1,
+        max_length=5000,
+        examples=["Based on the article, the main topic is..."]
+    )
+    session_id: str = Field(
+        description="Session identifier (echoed back)",
+        examples=["550e8400-e29b-41d4-a716-446655440000"]
+    )
