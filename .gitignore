@@ -1,2 +1,5 @@
 /docs
 /venv
+/backend/__pycache__
+/backend/services/__pycache__
+/tests/__pycache__
