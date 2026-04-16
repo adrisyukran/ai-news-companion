@@ -5,6 +5,10 @@ nano-gpt integration configuration.
 API key should be set via NANO_GPT_API_KEY environment variable.
 """
 import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # nano-gpt API Configuration
 NANO_GPT_API_URL = "https://nano-gpt.com/api/v1"
