@@ -118,6 +118,10 @@ Context from the article will be provided below. Answer the question based ONLY 
         # Maps session_id -> SessionContext
         self._sessions: Dict[str, SessionContext] = {}
         
+        # Track collection versions for session isolation
+        # Maps session_id -> collection_version (int)
+        self._collection_versions: Dict[str, int] = {}
+        
         logger.info(f"Initialized RAGService with embedding model: {embedding_model}")
     
     def _create_session_id(self) -> str:
@@ -171,6 +175,10 @@ Context from the article will be provided below. Answer the question based ONLY 
         """
         Create a new session with article content.
         
+        When reusing a session ID, uses a versioned collection name to prevent
+        any context leakage between articles. Each time a session is recreated
+        with the same ID, a new unique collection is created.
+        
         Args:
             text: Article text content
             source_type: Type of source ('url', 'file', 'text')
@@ -182,6 +190,14 @@ Context from the article will be provided below. Answer the question based ONLY 
         """
         session_id = session_id or self._create_session_id()
         
+        # Increment collection version to ensure unique collection name
+        # This prevents context leakage when reusing session IDs
+        if session_id in self._collection_versions:
+            self._collection_versions[session_id] += 1
+            logger.info(f"Session {session_id} reused, incrementing collection version to {self._collection_versions[session_id]}")
+        else:
+            self._collection_versions[session_id] = 0
+        
         # Create documents from text
         documents = self._create_documents(
             text=text,
@@ -191,10 +207,15 @@ Context from the article will be provided below. Answer the question based ONLY 
         )
         
         try:
-            # Create vector store (in-memory)
+            # Create vector store (in-memory) with a versioned collection name
+            # Format: session_{session_id}_v{version}
+            # This ensures complete isolation between session recreations
+            collection_version = self._collection_versions[session_id]
+            collection_name = f"session_{session_id}_v{collection_version}"
             vector_store = Chroma.from_documents(
                 documents=documents,
                 embedding=self._embeddings,
+                collection_name=collection_name,
             )
             
             # Verify vector store was created properly
@@ -257,10 +278,60 @@ Context from the article will be provided below. Answer the question based ONLY 
             True if session was deleted
         """
         if session_id in self._sessions:
+            # Clean up vector store collection if it exists
+            session = self._sessions[session_id]
+            if session.vector_store:
+                try:
+                    collection_name = session.vector_store._collection.name
+                    session.vector_store._client.delete_collection(name=collection_name)
+                    logger.info(f"Deleted collection {collection_name} for session {session_id}")
+                except Exception as e:
+                    logger.error(f"Error deleting collection for session {session_id}: {e}")
+            
             del self._sessions[session_id]
+            # Also clean up version tracking
+            if session_id in self._collection_versions:
+                del self._collection_versions[session_id]
             logger.info(f"Deleted session {session_id}")
             return True
         return False
+    
+    def clear_session(self, session_id: str) -> bool:
+        """
+        Clear all documents from the vector store for a given session.
+        This ensures no context leakage when reusing a session ID or loading new content.
+        
+        Since each session has its own isolated collection named 'session_{session_id}',
+        we delete the entire collection to ensure complete isolation.
+        
+        Args:
+            session_id: Session identifier to clear
+            
+        Returns:
+            True if session was cleared successfully
+        """
+        if session_id not in self._sessions:
+            logger.warning(f"Session {session_id} not found, nothing to clear")
+            return False
+        
+        session = self._sessions[session_id]
+        
+        # Delete the entire collection for this session
+        if session.vector_store:
+            try:
+                collection_name = session.vector_store._collection.name
+                # Delete the entire collection
+                session.vector_store._client.delete_collection(name=collection_name)
+                logger.info(f"Deleted collection {collection_name} for session {session_id}")
+            except Exception as e:
+                logger.error(f"Error deleting collection for session {session_id}: {e}")
+                return False
+        
+        # Clear the chunks list
+        session.chunks = []
+        
+        logger.info(f"Cleared session {session_id} documents")
+        return True
     
     def retrieve_relevant_chunks(
         self,
@@ -306,9 +377,7 @@ Context from the article will be provided below. Answer the question based ONLY 
         # Format chunks into context string
         context_parts = []
         for i, chunk in enumerate(chunks):
-            context_parts.append(
-                f"[Chunk {i+1}]:\n{chunk.page_content}"
-            )
+            context_parts.append(chunk.page_content)
         
         context = "\n\n".join(context_parts)
         
