@@ -6,7 +6,7 @@
 // ============================================
 // Configuration
 // ============================================
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = 'https://ainewscompanion-app-af59w5-f338f6-103-164-203-70.traefik.me';
 
 // ============================================
 // State Management
