@@ -43,7 +43,12 @@ class SessionContext:
     original_text: str
     chunks: List[Document] = field(default_factory=list)
     vector_store: Optional[Chroma] = None
-    created_at: float = field(default_factory=0)
+    created_at: float = field(default_factory=lambda: 0.0)
+
+
+class RAGError(Exception):
+    """Exception raised when RAG operations fail."""
+    pass
 
 
 class RAGService:
@@ -185,11 +190,24 @@ Context from the article will be provided below. Answer the question based ONLY 
             source_value=source_value,
         )
         
-        # Create vector store (in-memory)
-        vector_store = Chroma.from_documents(
-            documents=documents,
-            embedding=self._embeddings,
-        )
+        try:
+            # Create vector store (in-memory)
+            vector_store = Chroma.from_documents(
+                documents=documents,
+                embedding=self._embeddings,
+            )
+            
+            # Verify vector store was created properly
+            if vector_store is None:
+                raise RAGError("Failed to create vector store: Chroma returned None")
+            
+        except TypeError as e:
+            # Handle cases where Chroma or embeddings return unexpected types
+            logger.error(f"TypeError creating vector store: {e}")
+            raise RAGError(f"Vector store creation failed: {str(e)}")
+        except Exception as e:
+            logger.error(f"Error creating vector store: {e}")
+            raise RAGError(f"Failed to create vector store: {str(e)}")
         
         # Store session context
         self._sessions[session_id] = SessionContext(
