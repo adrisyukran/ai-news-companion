@@ -20,8 +20,8 @@ CHUNK_SIZE_TOKENS = 2000
 CHUNK_OVERLAP_TOKENS = 200
 
 # summarization Configuration
-SHORT_SUMMARY_LINES = 1-2
-MEDIUM_SUMMARY_LINES = 3-5
+SHORT_SUMMARY_LINES = (1, 2)  # Tuple: (min_lines, max_lines)
+MEDIUM_SUMMARY_LINES = (3, 5)  # Tuple: (min_lines, max_lines)
 
 # Translation Configuration
 SUPPORTED_LANGUAGES = ["en", "bm"]  # English, Bahasa Melayu
