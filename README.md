@@ -16,30 +16,51 @@ AI News Companion is a powerful backend service that provides AI-powered summari
 
 ## Pipeline Explanation
 
+The AI News Companion provides a unified single-page workflow for news processing:
+
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                           AI News Companion Pipeline                         │
+│                    AI News Companion - Single Page Flow                      │
 └─────────────────────────────────────────────────────────────────────────────┘
 
    ┌─────────────┐     ┌─────────────┐     ┌─────────────────────┐     ┌─────────────┐
-   │    INPUT    │ ──▶    PARSING     ──▶     LLM PROCESSING     ──▶      OUTPUT   
+   │    INPUT    │ ──▶    PARSING     ──▶     PROCESSING         ──▶      OUTPUT
    └─────────────┘     └─────────────┘     └─────────────────────┘     └─────────────┘
 
-   Input Types:                 Parser Service:            Processing Modes:          Output Types:
-   ─────────────               ─────────────              ──────────────             ───────────
-   • URL (web article)         • HTML → BeautifulSoup     • Summarization           • Short Summary (1-2 lines)
-   • PDF file                  • PDF → PyPDF2            • Translation             • Medium Summary (3-5 lines)
-   • DOCX file                • DOCX → python-docx      • RAG Chat                • Headline
-   • Plain text               • Plain text pass-through  •                         • Translated text
-                                                                                   • Chat response
+   Input Types:                 Parser Service:            Operations:               Output Types:
+   ─────────────               ─────────────              ─────────────             ───────────
+   • PDF file                  • PDF → PyPDF2            • Summarize               • Short Summary (1-2 lines)
+   • DOCX file                • DOCX → python-docx      • Translate               • Medium Summary (3-5 lines)
+   • Plain text               • Plain text pass-through  • Load to Chat (RAG)      • Headline
+                                                                                    • Translated text
+                                                                                    • Chat response
+   Note: URL input is available via backend API only
 ```
 
 ### Pipeline Flow
 
-1. **Input Reception**: Accept content via URL, file upload, or direct text input
+1. **Input Reception**: Accept content via file upload or direct text input
 2. **Parsing**: Extract text content using format-appropriate parsers
-3. **LLM Processing**: Route to appropriate processing pipeline (summarize/translate/chat)
-4. **Output Generation**: Return structured, formatted results
+3. **Content Filtering**: Remove advertisements, sponsored content, and navigation menus
+4. **Processing**: Route to appropriate operation (summarize/translate/load-to-chat)
+5. **Output Generation**: Return structured, formatted results
+
+### Frontend Flow
+
+The frontend presents a unified single-page interface:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      Single Page Interface                       │
+├─────────────────────────────────────────────────────────────────┤
+│  [Input] → [Select Operation] → [View Output] → [Chat/RAG]      │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+- **Input**: Paste text or upload PDF/DOCX files
+- **Operations**: Choose between Summarize, Translate, or Load to Chat
+- **Output**: View generated summaries, translations, or confirmation
+- **Chat**: Ask questions about loaded content using RAG
 
 ## Technical Details
 
@@ -49,10 +70,20 @@ The [`ParserService`](backend/services/parser_service.py:27) handles multiple in
 
 | Input Type | Detection Method | Parser Used |
 |------------|------------------|-------------|
-| URL | `source.startswith(('http://', 'https://'))` | BeautifulSoup4 |
 | PDF | Path with `.pdf` extension | PyPDF2 |
 | DOCX | Path with `.docx`/`.doc` extension | python-docx |
 | Plain Text | Any other string | Direct pass-through |
+
+**Note**: URL input is supported via the backend API only. The frontend provides file upload and text paste options.
+
+**Content Filtering for Summarization**:
+
+When processing pasted text, the system automatically filters out:
+- Advertisements and sponsored content
+- Navigation menus and headers
+- Non-article content to focus on main article body
+
+This ensures cleaner input for summarization and improved headline generation.
 
 **Long Input Chunking**: Content exceeding token limits is split into manageable chunks:
 
@@ -61,6 +92,22 @@ The [`ParserService`](backend/services/parser_service.py:27) handles multiple in
 
 This ensures context continuity while respecting LLM context windows.
 
+### Translation
+
+The translation system uses a two-stage approach for efficient and accurate translations:
+
+**Stage 1: LibreTranslate API**
+- Primary translation via LibreTranslate open-source API
+- Supports English ↔ Bahasa Melayu bidirectional translation
+- More efficient than full LLM generation for translation tasks
+
+**Stage 2: LLM Quality Check**
+- Minimal LLM-based review of translated text
+- Scans for errors, awkward phrasing, or mistranslations
+- Ensures quality without the cost of full LLM translation
+
+This approach balances efficiency and quality for translation operations.
+
 ### LLM Processing
 
 **Prompt Engineering Strategies**:
@@ -68,6 +115,13 @@ This ensures context continuity while respecting LLM context windows.
 1. **System Prompt Constraints**: All prompts include strict hallucination prevention rules
 2. **Explicit Information Boundaries**: Models are instructed to only use provided content
 3. **Fallback Instructions**: When information is insufficient, models state missing information rather than guessing
+
+**Summarization Improvements**:
+
+The summarization system includes enhanced content filtering and headline generation:
+
+1. **Ad/Sponsor Filtering**: Automatically removes advertisements, sponsored content, and navigation elements from pasted text before processing
+2. **Improved Headlines**: News-style headline generation that is factual, concise, and article-appropriate
 
 **Summarization Approach (Two-Stage)**:
 
@@ -200,21 +254,22 @@ All LLM operations return structured responses:
 
 ### Opening the Frontend
 
-After starting the backend, open [`frontend/index.html`](frontend/index.html) in a web browser. The frontend provides:
+After starting the backend, open [`frontend/index.html`](frontend/index.html) in a web browser. The frontend provides a unified single-page interface:
 
-- URL input for web article summarization
-- File upload for PDF/DOCX documents
-- Plain text input for direct processing
-- Translation interface (EN ↔ BM)
-- Chat interface for article-based Q&A
+- **Input**: Paste text directly or upload PDF/DOCX files
+- **Operations**: Select from Summarize, Translate, or Load to Chat
+- **Output**: View generated content in the results area
+- **Chat**: Ask questions about loaded content using RAG
+
+**Note**: URL input is available via the backend API (`/api/summarize` with URL source), but the frontend focuses on file and text input for better user experience.
 
 ## API Endpoints
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/summarize` | POST | Summarize article from URL, file, or text |
-| `/api/translate` | POST | Translate text between English and Bahasa Melayu |
-| `/api/chat/load` | POST | Load article into chat session |
+| `/api/summarize` | POST | Summarize article from text or file |
+| `/api/translate` | POST | Translate text between English and Bahasa Melayu (via LibreTranslate) |
+| `/api/chat/load` | POST | Load article into RAG chat session ("Load to Chat" operation) |
 | `/api/chat/ask` | POST | Ask question about loaded article |
 | `/health` | GET | Health check endpoint |
 | `/` | GET | Root endpoint with API info |

@@ -33,3 +33,6 @@ pytest-asyncio>=0.23.0
 # Utilities
 python-multipart>=0.0.6
 python-dotenv>=1.0.0
+
+# Translation
+argostranslate>=1.9.0

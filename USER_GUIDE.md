@@ -106,47 +106,55 @@ Open [`frontend/index.html`](frontend/index.html) in your web browser. You can a
 
 ## Usage Guide
 
-### Summarize an Article
+The AI News Companion uses a unified single-page interface with four main steps:
 
-The summarization feature accepts three input types: URL, file, or plain text.
+```
+Input → Select Operation → View Output → Chat (optional)
+```
 
-#### Method 1: URL Input
+### Step 1: Provide Input
 
-1. Open the frontend interface in your browser
-2. Navigate to the Summarize tab
-3. Select **URL** as the input type
-4. Enter the article URL (e.g., `https://example.com/news/article`)
-5. Click **Summarize**
-6. Wait for the processing to complete
+The system accepts two input types:
 
-The system will:
-1. Fetch and parse the web page using BeautifulSoup4
-2. Extract the article content
-3. Generate three summary types:
-   - **Short Summary**: 1-2 line overview
-   - **Medium Summary**: 3-5 line detailed summary
-   - **Headline**: A single compelling headline
+#### File Upload
 
-#### Method 2: File Upload
+1. Click to upload a PDF or DOCX file
+2. Supported formats: PDF (`.pdf`), Word Document (`.docx`, `.doc`)
 
-1. Navigate to the Summarize tab
-2. Select **File** as the input type
-3. Click to upload a PDF or DOCX file
-4. Click **Summarize**
+#### Plain Text Input
 
-Supported file formats:
-- PDF (`.pdf`)
-- Word Document (`.docx`, `.doc`)
-- Text files (`.txt`)
+1. Paste or type your article text directly into the input area
 
-#### Method 3: Plain Text Input
+**Content Filtering**: The system automatically filters out advertisements, sponsored content, and navigation menus from pasted text to focus on the main article content.
 
-1. Navigate to the Summarize tab
-2. Select **Text** as the input type
-3. Paste or type your article text directly
-4. Click **Summarize**
+### Step 2: Select Operation
 
-#### Long Article Handling
+Choose one of three operations:
+
+| Operation | Description |
+|-----------|-------------|
+| **Summarize** | Generate short/medium summaries and headline |
+| **Translate** | Translate between English and Bahasa Melayu |
+| **Load to Chat** | Initialize a RAG session for article-based Q&A |
+
+### Step 3: View Output
+
+The output appears in the results area:
+- **Summarize**: Shows short summary, medium summary, and headline
+- **Translate**: Shows translated text
+- **Load to Chat**: Shows confirmation when article is loaded
+
+### Step 4: Chat (Optional)
+
+For **Load to Chat**, a chat interface becomes available:
+
+1. Enter your question about the article
+2. Click **Send** or press Enter
+3. The system retrieves relevant content and generates an answer
+
+You can ask follow-up questions about the same article. To discuss a different article, select "Load to Chat" again with new content.
+
+### Long Article Handling
 
 For articles that exceed the token limit (2000 tokens), the system automatically:
 
@@ -157,48 +165,54 @@ For articles that exceed the token limit (2000 tokens), the system automatically
 
 This two-stage approach ensures comprehensive coverage while preventing information loss at boundaries.
 
+### Summarize an Article
+
+1. Paste text or upload a file in the input area
+2. Select **Summarize** as the operation
+3. Click **Submit**
+4. View the generated summaries:
+   - **Short Summary**: 1-2 line overview
+   - **Medium Summary**: 3-5 line detailed summary
+   - **Headline**: A single news-style headline
+
+The system filters out ads and navigation content to focus on the article body, resulting in cleaner summaries and more accurate headlines.
+
 ### Translate Text
 
 The translation feature supports bidirectional translation between English and Bahasa Melayu.
 
-#### To Translate English to Bahasa Melayu (BM):
+1. Paste or enter text in the input area
+2. Select **Translate** as the operation
+3. Choose direction: **EN → BM** or **BM → EN**
+4. Click **Submit**
+5. View the translated output
 
-1. Navigate to the **Translate** tab
-2. Select **English → BM** direction
-3. Enter or paste your English text
-4. Click **Translate**
-5. View the translated Bahasa Melayu output
+**How Translation Works**:
+- Primary translation via LibreTranslate API (open-source)
+- Automated quality check via LLM to scan for errors
+- This two-stage approach ensures accurate translations efficiently
 
-#### To Translate Bahasa Melayu to English:
+### Load to Chat
 
-1. Navigate to the **Translate** tab
-2. Select **BM → English** direction
-3. Enter or paste your Bahasa Melayu text
-4. Click **Translate**
-5. View the translated English output
+The "Load to Chat" operation initializes a RAG (Retrieval-Augmented Generation) session for article-based Q&A.
 
-> **Note**: Each translation request consumes API tokens. The system maintains your input for reference.
-
-### Chat About an Article
-
-The chat feature allows you to ask questions about a loaded article using RAG (Retrieval-Augmented Generation).
-
-#### Step 1: Load an Article
-
-1. Navigate to the **Chat** tab
-2. Select your input method (URL, File, or Text)
-3. Provide the article content
-4. Click **Load Article**
+1. Paste text or upload a file in the input area
+2. Select **Load to Chat** as the operation
+3. Click **Submit**
 
 The system will:
 1. Parse and extract the article content
-2. Split it into semantic chunks
-3. Generate embeddings for each chunk
-4. Store chunks in the vector database
+2. Filter out ads and navigation content
+3. Split it into semantic chunks
+4. Generate embeddings for each chunk
+5. Store chunks in the vector database
+6. Enable the chat interface
 
-A session ID will be returned to track your conversation.
+Once loaded, you can ask questions about the article.
 
-#### Step 2: Ask Questions
+### Chat About an Article
+
+After using **Load to Chat** to initialize a session:
 
 1. Enter your question in the chat input field
 2. Click **Send** or press Enter
@@ -208,14 +222,14 @@ The system will:
 2. Retrieve the most relevant chunks from the vector store
 3. Generate an answer using only the retrieved context
 
-You can continue asking follow-up questions about the same article. Each question uses the same loaded article context.
+You can continue asking follow-up questions about the same article. To discuss a different article, use "Load to Chat" again with new content.
 
 #### Chat Tips
 
 - Ask specific questions about facts in the article
 - Questions about dates, names, statistics, and events work best
 - If the answer isn't in the article, the system will indicate this
-- You can load a new article at any time to change the context
+- Use "Load to Chat" with new content to change the discussion topic
 
 ---
 
