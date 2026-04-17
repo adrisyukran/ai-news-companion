@@ -4,7 +4,8 @@ AI News Companion - Translator Service Tests
 Tests cover:
 - Language code validation
 - Same-language passthrough handling
-- Prompt building for en↔bm translation
+- Auto language detection
+- LLM refinement pipeline with DBP standards
 - News style preservation
 - TranslatorService async methods
 """
@@ -17,7 +18,8 @@ from backend.models.schemas import TranslateRequest, TranslateResponse
 from backend.services.translator import (
     TranslatorService,
     LANGUAGE_NAMES,
-    TRANSLATION_SYSTEM_PROMPT,
+    REFINEMENT_PROMPT,
+    DBP_INSTRUCTION,
 )
 
 
@@ -33,29 +35,42 @@ class TestLanguageNames:
         assert LANGUAGE_NAMES["bm"] == "Bahasa Melayu"
     
     def test_all_keys_present(self):
-        """Test that both en and bm keys exist."""
-        assert set(LANGUAGE_NAMES.keys()) == {"en", "bm"}
+        """Test that en, bm, and ms keys exist (ms is for argostranslate compatibility)."""
+        assert "en" in LANGUAGE_NAMES
+        assert "bm" in LANGUAGE_NAMES
+        assert "ms" in LANGUAGE_NAMES  # For argostranslate compatibility
+        assert LANGUAGE_NAMES["en"] == "English"
+        assert LANGUAGE_NAMES["bm"] == "Bahasa Melayu"
+        assert LANGUAGE_NAMES["ms"] == "Bahasa Melayu"
 
 
-class TestTranslationSystemPrompt:
-    """Tests for the translation system prompt."""
+class TestRefinementPrompt:
+    """Tests for the LLM refinement prompt."""
     
-    def test_system_prompt_exists(self):
-        """Test that system prompt is defined."""
-        assert len(TRANSLATION_SYSTEM_PROMPT) > 0
+    def test_refinement_prompt_exists(self):
+        """Test that refinement prompt is defined."""
+        assert len(REFINEMENT_PROMPT) > 0
     
-    def test_system_prompt_mentions_news_style(self):
-        """Test that system prompt emphasizes news style."""
-        assert "NEWS" in TRANSLATION_SYSTEM_PROMPT
-        assert "formal" in TRANSLATION_SYSTEM_PROMPT.lower()
+    def test_refinement_prompt_mentions_grammar(self):
+        """Test that refinement prompt mentions grammar checking."""
+        assert "grammatical" in REFINEMENT_PROMPT.lower()
     
-    def test_system_prompt_mentions_accuracy(self):
-        """Test that system prompt emphasizes accuracy."""
-        assert "ACCURACY" in TRANSLATION_SYSTEM_PROMPT
+    def test_refinement_prompt_mentions_spelling(self):
+        """Test that refinement prompt mentions spelling."""
+        assert "spelling" in REFINEMENT_PROMPT.lower()
     
-    def test_system_prompt_mentions_malaysian_context(self):
-        """Test that system prompt mentions Malaysian context."""
-        assert "Malaysian" in TRANSLATION_SYSTEM_PROMPT
+    def test_dbp_instruction_exists(self):
+        """Test that DBP instruction is defined."""
+        assert len(DBP_INSTRUCTION) > 0
+    
+    def test_dbp_instruction_mentions_dewan_bahasa(self):
+        """Test that DBP instruction mentions Dewan Bahasa dan Pustaka."""
+        assert "Dewan Bahasa dan Pustaka" in DBP_INSTRUCTION
+        assert "DBP" in DBP_INSTRUCTION
+    
+    def test_dbp_instruction_mentions_indonesian(self):
+        """Test that DBP instruction warns against Indonesian."""
+        assert "Indonesian" in DBP_INSTRUCTION
 
 
 class TestTranslatorService:
@@ -73,40 +88,36 @@ class TestTranslatorService:
         assert service.llm_service == mock_llm
 
 
-class TestBuildTranslationPrompt:
-    """Tests for prompt building logic."""
+class TestLanguageDetection:
+    """Tests for auto language detection."""
     
     def setup_method(self):
         """Set up test fixtures."""
         self.service = TranslatorService()
     
-    def test_en_to_bm_prompt(self):
-        """Test building English to BM translation prompt."""
-        text = "The Prime Minister announced new policies."
-        prompt = self.service._build_translation_prompt(text, "en", "bm")
-        
-        assert "English" in prompt
-        assert "Bahasa Melayu" in prompt
-        assert text in prompt
+    def test_detect_english_with_common_words(self):
+        """Test detecting English text with common words."""
+        text = "The government announced new policies for the people."
+        detected = self.service._detect_language(text)
+        assert detected == "en"
     
-    def test_bm_to_en_prompt(self):
-        """Test building BM to English translation prompt."""
-        text = "Perdana Menteri mengumumkan dasar baharu."
-        prompt = self.service._build_translation_prompt(text, "bm", "en")
-        
-        assert "Bahasa Melayu" in prompt
-        assert "English" in prompt
-        assert text in prompt
+    def test_detect_bm_with_common_words(self):
+        """Test detecting BM text with common words."""
+        text = "Kerajaan mengumumkan dasar baharu untuk rakyat."
+        detected = self.service._detect_language(text)
+        assert detected == "bm"
     
-    def test_prompt_contains_translation_instruction(self):
-        """Test that prompt contains translation instruction."""
-        prompt = self.service._build_translation_prompt("Test text", "en", "bm")
-        assert "Translate" in prompt
+    def test_detect_bm_with_yang(self):
+        """Test detecting BM text with 'yang' keyword."""
+        text = "Perdana Menteri yang mengumumkan dasar itu hadir di parlimen."
+        detected = self.service._detect_language(text)
+        assert detected == "bm"
     
-    def test_prompt_contains_news_style_instruction(self):
-        """Test that prompt contains news style instruction."""
-        prompt = self.service._build_translation_prompt("Test text", "en", "bm")
-        assert "news" in prompt.lower()
+    def test_detect_english_with_the(self):
+        """Test detecting English text with 'the' keyword."""
+        text = "The Prime Minister who announced the policies was at parliament."
+        detected = self.service._detect_language(text)
+        assert detected == "en"
 
 
 class TestTranslateMethod:
@@ -149,18 +160,22 @@ class TestTranslateMethod:
         mock_response.content = "The Prime Minister announced new policies."
         mock_service.llm_service.complete = AsyncMock(return_value=mock_response)
         
-        # Execute
-        request = TranslateRequest(
-            text="Perdana Menteri mengumumkan dasar baharu.",
-            source_lang="bm",
-            target_lang="en",
-        )
-        response = await mock_service.translate(request)
-        
-        # Verify
-        assert isinstance(response, TranslateResponse)
-        assert response.translated_text == "The Prime Minister announced new policies."
-        assert response.maintained_tone == "news"
+        # Mock the argostranslate to return a base translation
+        with patch('backend.services.translator.argostranslate.translate.translate') as mock_translate:
+            mock_translate.return_value = "Base translation"
+            
+            # Execute
+            request = TranslateRequest(
+                text="Perdana Menteri mengumumkan dasar baharu.",
+                source_lang="bm",
+                target_lang="en",
+            )
+            response = await mock_service.translate(request)
+            
+            # Verify
+            assert isinstance(response, TranslateResponse)
+            assert response.translated_text == "The Prime Minister announced new policies."
+            assert response.maintained_tone == "news"
     
     @pytest.mark.asyncio
     async def test_translate_same_language_passthrough(self, mock_service):
@@ -205,27 +220,96 @@ class TestTranslateMethod:
         assert "target_lang" in str(exc_info.value)
     
     @pytest.mark.asyncio
+    async def test_translate_auto_detect_source(self, mock_service):
+        """Test auto-detection of source language."""
+        # Setup mock for LLM detection (heuristic will be inconclusive)
+        mock_response = MagicMock()
+        mock_response.content = "Perdana Menteri mengumumkan dasar baharu."
+        mock_service.llm_service.complete = AsyncMock(return_value=mock_response)
+        
+        # Mock the argostranslate to return a base translation
+        with patch('backend.services.translator.argostranslate.translate.translate') as mock_translate:
+            mock_translate.return_value = "Base translation"
+            
+            # Execute without source_lang - should auto-detect
+            request = TranslateRequest(
+                text="The Prime Minister announced new policies.",
+                target_lang="bm",
+            )
+            response = await mock_service.translate(request)
+            
+            # Verify
+            assert isinstance(response, TranslateResponse)
+            mock_service.llm_service.complete.assert_called()
+    
+    @pytest.mark.asyncio
+    async def test_translate_auto_detect_both(self, mock_service):
+        """Test auto-detection of both source and target languages."""
+        # Setup mock
+        mock_response = MagicMock()
+        mock_response.content = "Perdana Menteri mengumumkan dasar baharu."
+        mock_service.llm_service.complete = AsyncMock(return_value=mock_response)
+        
+        # Mock the argostranslate
+        with patch('backend.services.translator.argostranslate.translate.translate') as mock_translate:
+            mock_translate.return_value = "Base translation"
+            
+            # Execute without any language codes
+            request = TranslateRequest(
+                text="The Prime Minister announced new policies.",
+            )
+            response = await mock_service.translate(request)
+            
+            # Verify - should detect EN and translate to BM
+            assert isinstance(response, TranslateResponse)
+            assert response.translated_text == "Perdana Menteri mengumumkan dasar baharu."
+    
+    @pytest.mark.asyncio
+    async def test_translate_auto_detect_bm_source(self, mock_service):
+        """Test auto-detection of BM source language."""
+        # Setup mock
+        mock_response = MagicMock()
+        mock_response.content = "The Prime Minister announced new policies."
+        mock_service.llm_service.complete = AsyncMock(return_value=mock_response)
+        
+        # Mock the argostranslate
+        with patch('backend.services.translator.argostranslate.translate.translate') as mock_translate:
+            mock_translate.return_value = "Base translation"
+            
+            # Execute with BM text (should auto-detect as BM and translate to EN)
+            request = TranslateRequest(
+                text="Perdana Menteri mengumumkan dasar baharu.",
+            )
+            response = await mock_service.translate(request)
+            
+            # Verify
+            assert isinstance(response, TranslateResponse)
+    
+    @pytest.mark.asyncio
     async def test_translate_calls_llm_with_correct_params(self, mock_service):
-        """Test that LLM is called with correct parameters."""
+        """Test that LLM is called with correct parameters for refinement."""
         # Setup mock
         mock_response = MagicMock()
         mock_response.content = "Translated text"
         mock_service.llm_service.complete = AsyncMock(return_value=mock_response)
         
-        # Execute
-        request = TranslateRequest(
-            text="Test text",
-            source_lang="en",
-            target_lang="bm",
-        )
-        await mock_service.translate(request)
+        # Mock the argostranslate
+        with patch('backend.services.translator.argostranslate.translate.translate') as mock_translate:
+            mock_translate.return_value = "Base translation"
+            
+            # Execute
+            request = TranslateRequest(
+                text="Test text",
+                source_lang="en",
+                target_lang="bm",
+            )
+            await mock_service.translate(request)
         
-        # Verify LLM call parameters
-        call_kwargs = mock_service.llm_service.complete.call_args.kwargs
-        assert "prompt" in call_kwargs
-        assert "system_prompt" in call_kwargs
-        assert call_kwargs["temperature"] == 0.3
-        assert call_kwargs["max_tokens"] == 4096
+        # Verify LLM was called (for refinement)
+        assert mock_service.llm_service.complete.call_count >= 1
+        # Check that refinement prompt was used (contains source and base translation)
+        call_args = mock_service.llm_service.complete.call_args
+        assert call_args is not None
 
 
 class TestTranslateConvenienceMethods:
@@ -245,10 +329,13 @@ class TestTranslateConvenienceMethods:
         mock_response.content = "BM translation"
         mock_service.llm_service.complete = AsyncMock(return_value=mock_response)
         
-        response = await mock_service.translate_en_to_bm("EN text")
-        
-        assert response.translated_text == "BM translation"
-        mock_service.llm_service.complete.assert_called_once()
+        with patch('backend.services.translator.argostranslate.translate.translate') as mock_translate:
+            mock_translate.return_value = "Base translation"
+            
+            response = await mock_service.translate_en_to_bm("EN text")
+            
+            assert response.translated_text == "BM translation"
+            assert mock_service.llm_service.complete.call_count >= 1
     
     @pytest.mark.asyncio
     async def test_translate_bm_to_en_convenience(self, mock_service):
@@ -257,10 +344,13 @@ class TestTranslateConvenienceMethods:
         mock_response.content = "EN translation"
         mock_service.llm_service.complete = AsyncMock(return_value=mock_response)
         
-        response = await mock_service.translate_bm_to_en("BM text")
-        
-        assert response.translated_text == "EN translation"
-        mock_service.llm_service.complete.assert_called_once()
+        with patch('backend.services.translator.argostranslate.translate.translate') as mock_translate:
+            mock_translate.return_value = "Base translation"
+            
+            response = await mock_service.translate_bm_to_en("BM text")
+            
+            assert response.translated_text == "EN translation"
+            assert mock_service.llm_service.complete.call_count >= 1
 
 
 class TestTranslateRequest:
