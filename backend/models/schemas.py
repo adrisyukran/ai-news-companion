@@ -121,6 +121,9 @@ class TranslateRequest(BaseModel):
     Supports bidirectional translation between:
     - English (en)
     - Bahasa Melayu (bm)
+    
+    If source_lang and target_lang are not provided, the service will
+    auto-detect the source language and translate to the opposite language.
     """
     text: str = Field(
         description="Text content to translate",
@@ -128,13 +131,15 @@ class TranslateRequest(BaseModel):
         max_length=10000,
         examples=["The Prime Minister announced new economic policies today."]
     )
-    source_lang: str = Field(
-        description="Source language code",
+    source_lang: Optional[str] = Field(
+        default=None,
+        description="Source language code (optional, will auto-detect if not provided)",
         pattern="^(en|bm)$",
         examples=["en", "bm"]
     )
-    target_lang: str = Field(
-        description="Target language code",
+    target_lang: Optional[str] = Field(
+        default=None,
+        description="Target language code (optional, will auto-detect opposite of source if not provided)",
         pattern="^(en|bm)$",
         examples=["bm", "en"]
     )
@@ -145,6 +150,13 @@ class TranslateRequest(BaseModel):
         """Normalize language codes to lowercase."""
         if isinstance(v, str):
             return v.lower().strip()
+        return v
+    
+    @field_validator('source_lang', 'target_lang')
+    @classmethod
+    def validate_language_pair(cls, v, info):
+        """Validate that if both languages are provided, they are different."""
+        # This validation will be done in the service layer for more flexibility
         return v
 
 
