@@ -102,6 +102,9 @@ STRICT HEADLINE REQUIREMENTS:
 - Must NOT use generic phrases like "Article about...", "Story on...", "News regarding..."
 - Must NOT use clickbait language like "You Won't Believe...", "Shocking...", "Amazing..."
 - NO quotation marks, colons, semicolons, or trailing punctuation (periods, exclamation marks)
+- CRITICAL: Must be a COMPLETE thought - NEVER end with conjunctions, prepositions, or articles
+- NEVER end with words like: "a", "an", "the", "because", "and", "with", "of", "for", "to", "in", "on", "at", "by", "from"
+- The headline must be a standalone, complete statement that makes sense on its own
 
 GENERIC WORDS TO AVOID - these make headlines meaningless:
 - "Something", "something new", "something big"
@@ -139,13 +142,16 @@ BAD HEADLINE EXAMPLES (NEVER produce these):
 - "Something big is happening" (meaningless clickbait)
 - "You won't believe this news" (clickbait)
 - "Breaking: Something amazing just happened" (vague clickbait)
+- "Company announces new product because" (incomplete - ends with conjunction)
+- "Market rises as investors look at" (incomplete - ends with preposition)
+- "Scientists discover a" (incomplete - ends with article)
 
 ARTICLE:
 ---
 {article_text}
 ---
 
-Remember: You are a professional editor. Create ONE compelling, specific headline. Output ONLY the headline text with no additional content."""
+Remember: You are a professional editor. Create ONE compelling, specific headline that is a COMPLETE thought. Output ONLY the headline text with no additional content."""
 
     # Prompt for summarizing individual chunks (first stage of chunked summarization)
     CHUNK_SUMMARY_PROMPT = """Summarize the following article excerpt in 2-3 sentences.
@@ -664,6 +670,30 @@ Now create the final summaries:
             # Take first 10-12 words for headline length
             words = first_sentence.split()
             headline_words = words[:12]
+            
+            # Check if we're cutting off at an incomplete word and adjust
+            incomplete_endings = {
+                "because", "and", "but", "or", "so", "yet", "although", "though", "while", "whereas",
+                "with", "of", "for", "to", "in", "on", "at", "by", "from", "into", "upon", "within",
+                "without", "through", "throughout", "across", "around", "about", "after", "before",
+                "during", "under", "over", "above", "below", "between", "among", "beside", "beyond",
+                "a", "an", "the",
+                "as", "than", "that", "which", "who", "whom", "whose", "what", "when", "where", "why",
+                "how", "if", "unless", "until", "since",
+            }
+            
+            # If the last word is incomplete, trim backwards until we find a complete ending
+            while headline_words and headline_words[-1].strip().lower().rstrip('.,!?;:"\'') in incomplete_endings:
+                headline_words = headline_words[:-1]
+            
+            # If we trimmed too much, try to include more from the original sentence
+            if len(headline_words) < 4 and len(words) > 12:
+                # Try a different cut point - look for a complete clause
+                for i in range(min(8, len(words)), len(words)):
+                    if words[i].strip().lower().rstrip('.,!?;:"\'') not in incomplete_endings:
+                        headline_words = words[:i+1]
+                        break
+            
             headline = ' '.join(headline_words)
             
             # Capitalize first letter of each major word (title case-ish)
@@ -689,14 +719,69 @@ Now create the final summaries:
                 # Try combining first two sentences
                 combined = ' '.join(sentences[:2])
                 words = combined.split()[:12]
+                
+                # Again, check for incomplete endings
+                while words and words[-1].strip().lower().rstrip('.,!?;:"\'') in incomplete_endings:
+                    words = words[:-1]
+                
                 headline = ' '.join(words).rstrip('.,!?;:')
             
             return headline if headline.strip() else "News Story"
         
         # Fallback: use first 10 words of summary
         words = summary.split()[:10]
+        
+        # Check for incomplete endings and adjust
+        incomplete_endings = {
+            "because", "and", "but", "or", "so", "yet", "although", "though", "while", "whereas",
+            "with", "of", "for", "to", "in", "on", "at", "by", "from", "into", "upon", "within",
+            "without", "through", "throughout", "across", "around", "about", "after", "before",
+            "during", "under", "over", "above", "below", "between", "among", "beside", "beyond",
+            "a", "an", "the",
+        }
+        
+        while words and words[-1].strip().lower().rstrip('.,!?;:"\'') in incomplete_endings:
+            words = words[:-1]
+        
         headline = ' '.join(words).rstrip('.,!?;:')
         return headline if headline.strip() else "News Story"
+    
+    def _ends_with_incomplete_word(self, headline: str) -> bool:
+        """
+        Check if a headline ends with an incomplete word (conjunction, preposition, or article).
+        
+        Args:
+            headline: Headline to check
+            
+        Returns:
+            True if headline ends with an incomplete word, False otherwise
+        """
+        if not headline or not headline.strip():
+            return False
+        
+        # Words that indicate an incomplete thought when at the end
+        incomplete_endings = {
+            # Conjunctions
+            "because", "and", "but", "or", "so", "yet", "although", "though", "while", "whereas",
+            # Prepositions
+            "with", "of", "for", "to", "in", "on", "at", "by", "from", "into", "upon", "within",
+            "without", "through", "throughout", "across", "around", "about", "after", "before",
+            "during", "under", "over", "above", "below", "between", "among", "beside", "beyond",
+            # Articles
+            "a", "an", "the",
+            # Other incomplete indicators
+            "as", "than", "that", "which", "who", "whom", "whose", "what", "when", "where", "why",
+            "how", "if", "unless", "until", "since", "while",
+        }
+        
+        words = headline.strip().split()
+        if not words:
+            return False
+        
+        # Get the last word, stripped of punctuation
+        last_word = words[-1].strip().lower().rstrip('.,!?;:"\'')
+        
+        return last_word in incomplete_endings
     
     def _validate_headline(self, headline: str, short_summary: str) -> str:
         """
@@ -746,6 +831,11 @@ Now create the final summaries:
         # Check if headline is too short (< 5 words) - use fallback
         if headline and len(headline.split()) < 5:
             logger.debug(f"Headline too short ({len(headline.split())} words): '{headline}'")
+            headline = ""  # Trigger fallback
+        
+        # Check if headline ends with an incomplete word (conjunction, preposition, article)
+        if headline and self._ends_with_incomplete_word(headline):
+            logger.debug(f"Headline ends with incomplete word: '{headline}'")
             headline = ""  # Trigger fallback
         
         # Final fallback for empty, too short, or generic headline
