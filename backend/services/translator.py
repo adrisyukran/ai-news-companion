@@ -133,15 +133,21 @@ class TranslatorService:
                 # Find and install required packages
                 for from_code, to_code in models_to_install:
                     try:
-                        package_to_install = argostranslate.package.get_package_from_codes(
-                            from_code, to_code
-                        )
+                        # Manually search through available packages since get_package_from_codes doesn't exist
+                        available_packages = argostranslate.package.get_available_packages()
+                        package_to_install = None
+                        for pkg in available_packages:
+                            if pkg.from_code == from_code and pkg.to_code == to_code:
+                                package_to_install = pkg
+                                break
+                        
                         if package_to_install:
                             package_to_install.download()
                             package_to_install.install()
                             logger.info(f"Successfully installed {from_code}→{to_code} model")
                         else:
                             logger.error(f"Package not found for {from_code}→{to_code}")
+                            raise RuntimeError(f"Package not found for {from_code}→{to_code}")
                     except Exception as e:
                         logger.error(f"Failed to install {from_code}→{to_code} model: {e}")
                         raise RuntimeError(f"Failed to install translation model {from_code}→{to_code}: {e}")
