@@ -147,6 +147,42 @@ async def delete_session(session_id: str) -> dict:
         )
 
 
+@router.post("/chat/session/{session_id}/clear")
+async def clear_session(session_id: str) -> dict:
+    """
+    Clear all documents from a session's vector store without deleting the session.
+    This is useful for preventing context leakage when loading new content.
+    
+    Args:
+        session_id: Session identifier to clear
+        
+    Returns:
+        Dict with clear status
+    """
+    try:
+        rag_service = get_rag_service()
+        
+        if rag_service.clear_session(session_id):
+            return {
+                "session_id": session_id,
+                "status": "cleared",
+            }
+        else:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Session {session_id} not found"
+            )
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error clearing session: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error clearing session: {str(e)}"
+        )
+
+
 @router.get("/chat/session/{session_id}/exists")
 async def check_session(session_id: str) -> dict:
     """
