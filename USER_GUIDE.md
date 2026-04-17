@@ -127,15 +127,17 @@ The system accepts two input types:
 
 **Content Filtering**: The system automatically filters out advertisements, sponsored content, and navigation menus from pasted text to focus on the main article content.
 
-### Step 2: Select Operation
+### Step 2: Choose an Operation
 
-Choose one of three operations:
+The interface provides direct action buttons for each operation:
 
-| Operation | Description |
-|-----------|-------------|
+| Button | Description |
+|--------|-------------|
 | **Summarize** | Generate short/medium summaries and headline |
-| **Translate** | Translate between English and Bahasa Melayu |
+| **Translate** | Auto-translate between English and Bahasa Melayu |
 | **Load to Chat** | Initialize a RAG session for article-based Q&A |
+
+Simply click the appropriate button to execute the operation. Previous results are automatically cleared when starting a new operation.
 
 ### Step 3: View Output
 
@@ -182,15 +184,16 @@ The system filters out ads and navigation content to focus on the article body, 
 The translation feature supports bidirectional translation between English and Bahasa Melayu.
 
 1. Paste or enter text in the input area
-2. Select **Translate** as the operation
-3. Choose direction: **EN → BM** or **BM → EN**
-4. Click **Submit**
-5. View the translated output
+2. Click **Translate**
+3. View the translated output
+
+**Auto-Detection**: The system automatically detects whether your input is in English or Bahasa Melayu and translates to the opposite language. No manual direction selection is needed.
 
 **How Translation Works**:
-- Primary translation via LibreTranslate API (open-source)
-- Automated quality check via LLM to scan for errors
-- This two-stage approach ensures accurate translations efficiently
+- Primary translation via ArgosTranslate (offline/open-source library)
+- LLM-based refinement to fix spelling, grammar, and phrasing
+- For Bahasa Melayu output, refinement follows Dewan Bahasa dan Pustaka (DBP) standards to ensure formal, accurate language
+- This two-stage approach ensures accurate, professionally-appropriate translations
 
 ### Load to Chat
 
@@ -222,7 +225,15 @@ The system will:
 2. Retrieve the most relevant chunks from the vector store
 3. Generate an answer using only the retrieved context
 
-You can continue asking follow-up questions about the same article. To discuss a different article, use "Load to Chat" again with new content.
+**Markdown Support**: Chat responses support full markdown formatting including:
+- **Bold** and *italic* text
+- Bullet and numbered lists
+- Code blocks
+- Other standard markdown syntax
+
+**Session Isolation**: Each article is loaded into a separate versioned collection. Loading a new article completely clears the previous context, ensuring questions about one article don't leak into discussions about another.
+
+**Results Auto-Clear**: When you change the input content or start a new operation, previous results and chat history are automatically cleared to prevent confusion.
 
 #### Chat Tips
 
