@@ -161,12 +161,13 @@ This is a short summary of the article.
 This is a medium summary that provides more information about the article. It contains several key points and details.
 
 3. Headline (single compelling headline, no quotation marks):
-Major Breakthrough Announced"""
-        
+Major Technology Breakthrough Announced by Research Team"""
+
         short, medium, headline = self.service._parse_combined_response(response)
         assert "short summary" in short.lower()
         assert "medium summary" in medium.lower()
-        assert "Major Breakthrough" in headline
+        # Headline should be validated and contain key content (7 words, passes validation)
+        assert "Technology Breakthrough" in headline or "Research Team" in headline
     
     def test_parse_response_short_only(self):
         """Test parsing response with only short summary."""
@@ -184,7 +185,7 @@ Major Breakthrough Announced"""
         short, medium, headline = self.service._parse_combined_response(response)
         assert short == ""  # Falls back to empty
         assert medium == ""
-        assert headline == "Summary"  # Default headline
+        assert headline == "News Story"  # Default headline after validation
     
     def test_extract_headline(self):
         """Test headline extraction from text."""
