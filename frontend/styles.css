@@ -1,6 +1,6 @@
 /* ============================================
    AI News Companion - Styles
-   Professional news-style aesthetic
+   Single-page unified flow design
    ============================================ */
 
 /* CSS Variables for theming */
@@ -75,50 +75,6 @@ body {
 }
 
 /* ============================================
-   Tab Navigation
-   ============================================ */
-.tab-nav {
-    display: flex;
-    gap: 8px;
-    background: var(--card-bg);
-    padding: 8px;
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-sm);
-    margin-bottom: 24px;
-}
-
-.tab-btn {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    padding: 12px 16px;
-    border: none;
-    background: transparent;
-    color: var(--text-muted);
-    font-size: 0.95rem;
-    font-weight: 500;
-    cursor: pointer;
-    border-radius: var(--radius-sm);
-    transition: var(--transition);
-}
-
-.tab-btn:hover {
-    background: var(--bg-color);
-    color: var(--text-color);
-}
-
-.tab-btn.active {
-    background: var(--primary-color);
-    color: white;
-}
-
-.tab-icon {
-    font-size: 1.1rem;
-}
-
-/* ============================================
    Main Content
    ============================================ */
 .main-content {
@@ -129,15 +85,7 @@ body {
     margin-bottom: 24px;
 }
 
-.tab-content {
-    display: none;
-}
-
-.tab-content.active {
-    display: block;
-}
-
-.tab-content h2 {
+.main-content h2 {
     font-size: 1.5rem;
     color: var(--primary-color);
     margin-bottom: 8px;
@@ -146,6 +94,23 @@ body {
 .section-desc {
     color: var(--text-muted);
     margin-bottom: 24px;
+}
+
+/* Sections with visual separation */
+#input-section,
+#operations-section,
+#results-section,
+#chat-section {
+    padding-bottom: 24px;
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+#input-section:last-child,
+#operations-section:last-child,
+#results-section:last-child,
+#chat-section:last-child {
+    border-bottom: none;
 }
 
 /* ============================================
@@ -199,7 +164,6 @@ body {
     color: var(--text-color);
 }
 
-.input-panel input[type="url"],
 .input-panel input[type="text"],
 .input-panel textarea {
     width: 100%;
@@ -237,8 +201,15 @@ body {
 }
 
 /* ============================================
-   Buttons
+   Action Buttons
    ============================================ */
+.action-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
 .action-btn {
     width: 100%;
     display: flex;
@@ -269,59 +240,54 @@ body {
     cursor: not-allowed;
 }
 
-.secondary-btn {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    padding: 12px 20px;
-    background: var(--bg-color);
-    color: var(--primary-color);
-    border: 1px solid var(--primary-color);
-    border-radius: var(--radius-md);
-    font-size: 0.95rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: var(--transition);
+.btn-icon {
+    font-size: 1.2rem;
 }
 
-.secondary-btn:hover {
+/* Summarize button - primary blue */
+.summarize-btn {
     background: var(--primary-color);
-    color: white;
 }
 
-.icon-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 6px 10px;
-    border: none;
-    background: transparent;
-    font-size: 1.1rem;
-    cursor: pointer;
-    border-radius: var(--radius-sm);
-    transition: var(--transition);
+.summarize-btn:hover {
+    background: var(--primary-light);
 }
 
-.icon-btn:hover {
-    background: var(--error-color);
-    color: white;
+/* Translate button - accent color */
+.translate-btn {
+    background: var(--accent-color);
+}
+
+.translate-btn:hover {
+    background: var(--accent-hover);
+}
+
+/* Load to Chat button - distinct green */
+.load-chat-btn {
+    background: var(--success-color);
+}
+
+.load-chat-btn:hover {
+    background: #2f855a;
 }
 
 /* ============================================
    Results Panel
    ============================================ */
-.results-panel {
-    margin-top: 24px;
-    padding-top: 24px;
-    border-top: 1px solid var(--border-color);
+.result-group {
+    margin-bottom: 24px;
 }
 
-.results-panel h3 {
-    font-size: 1.2rem;
+.result-group:last-child {
+    margin-bottom: 0;
+}
+
+.result-group-title {
+    font-size: 1.1rem;
     color: var(--primary-color);
     margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--border-color);
 }
 
 .result-card {
@@ -360,58 +326,6 @@ body {
 }
 
 /* ============================================
-   Language Selectors (Translation)
-   ============================================ */
-.language-selectors {
-    display: flex;
-    align-items: flex-end;
-    justify-content: center;
-    gap: 16px;
-    margin-bottom: 20px;
-    padding: 16px;
-    background: var(--bg-color);
-    border-radius: var(--radius-md);
-}
-
-.lang-selector {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
-.lang-selector label {
-    font-size: 0.85rem;
-    font-weight: 500;
-    color: var(--text-muted);
-}
-
-.lang-selector select {
-    padding: 10px 16px;
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-sm);
-    font-size: 0.95rem;
-    background: var(--card-bg);
-    cursor: pointer;
-    min-width: 140px;
-}
-
-.lang-swap button {
-    padding: 10px 14px;
-    border: 1px solid var(--border-color);
-    background: var(--card-bg);
-    border-radius: var(--radius-sm);
-    font-size: 1.2rem;
-    cursor: pointer;
-    transition: var(--transition);
-}
-
-.lang-swap button:hover {
-    background: var(--primary-color);
-    color: white;
-    border-color: var(--primary-color);
-}
-
-/* ============================================
    Chat Section
    ============================================ */
 .session-info {
@@ -437,22 +351,22 @@ body {
     flex: 1;
 }
 
-.chat-load-panel {
-    background: var(--bg-color);
-    padding: 20px;
-    border-radius: var(--radius-md);
-    margin-bottom: 20px;
+.icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 10px;
+    border: none;
+    background: transparent;
+    font-size: 1.1rem;
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    transition: var(--transition);
 }
 
-.panel-desc {
-    font-size: 0.9rem;
-    color: var(--text-muted);
-    margin-bottom: 16px;
-}
-
-.chat-load-panel .input-panel input,
-.chat-load-panel .input-panel textarea {
-    margin-bottom: 16px;
+.icon-btn:hover {
+    background: var(--error-color);
+    color: white;
 }
 
 .chat-window {
@@ -636,20 +550,12 @@ body {
         font-size: 1.5rem;
     }
 
-    .tab-nav {
-        flex-direction: column;
+    .action-buttons {
+        gap: 10px;
     }
 
-    .tab-btn {
-        justify-content: flex-start;
-    }
-
-    .language-selectors {
-        flex-wrap: wrap;
-    }
-
-    .lang-selector select {
-        min-width: 100%;
+    .action-btn {
+        padding: 12px 20px;
     }
 
     .chat-input-container {

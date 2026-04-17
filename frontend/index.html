@@ -14,47 +14,22 @@
             <p class="tagline">Summarize • Translate • Chat with your news articles</p>
         </header>
 
-        <!-- Tab Navigation -->
-        <nav class="tab-nav">
-            <button class="tab-btn active" data-tab="summarize">
-                <span class="tab-icon">📝</span>
-                <span class="tab-label">Summarize</span>
-            </button>
-            <button class="tab-btn" data-tab="translate">
-                <span class="tab-icon">🌐</span>
-                <span class="tab-label">Translate</span>
-            </button>
-            <button class="tab-btn" data-tab="chat">
-                <span class="tab-icon">💬</span>
-                <span class="tab-label">Chat</span>
-            </button>
-        </nav>
-
         <!-- Main Content Area -->
         <main class="main-content">
-            <!-- Summarization Section -->
-            <section id="summarize" class="tab-content active">
-                <h2>Article Summarization</h2>
-                <p class="section-desc">Get concise summaries of news articles in three formats.</p>
+            <!-- Input Section -->
+            <section id="input-section">
+                <h2>Article Input</h2>
+                <p class="section-desc">Provide your news article content using file upload or paste text.</p>
 
                 <!-- Input Options -->
                 <div class="input-group">
                     <div class="input-tabs">
-                        <button class="input-tab-btn active" data-input="url">URL</button>
-                        <button class="input-tab-btn" data-input="file">File Upload</button>
+                        <button class="input-tab-btn active" data-input="file">File Upload</button>
                         <button class="input-tab-btn" data-input="text">Paste Text</button>
                     </div>
 
-                    <!-- URL Input -->
-                    <div class="input-panel active" id="url-panel">
-                        <label for="article-url">Article URL</label>
-                        <div class="input-with-button">
-                            <input type="url" id="article-url" placeholder="https://example.com/news/article" />
-                        </div>
-                    </div>
-
                     <!-- File Upload -->
-                    <div class="input-panel" id="file-panel">
+                    <div class="input-panel active" id="file-panel">
                         <label for="article-file">Upload File (PDF, DOCX, TXT)</label>
                         <div class="file-upload-wrapper">
                             <input type="file" id="article-file" accept=".pdf,.docx,.txt" />
@@ -67,16 +42,48 @@
                         <textarea id="article-text" rows="8" placeholder="Paste your article text here..."></textarea>
                     </div>
                 </div>
+            </section>
 
-                <!-- Summarize Button -->
-                <button id="summarize-btn" class="action-btn">
-                    <span class="btn-text">Summarize</span>
-                    <span class="btn-loader loader hidden"></span>
-                </button>
+            <!-- Action Buttons -->
+            <section id="actions-section">
+                <h2>Choose Action</h2>
+                <p class="section-desc">Select what you want to do with your article.</p>
 
-                <!-- Results Display -->
-                <div id="summarize-results" class="results-panel hidden">
-                    <h3>Summary Results</h3>
+                <div class="action-buttons">
+                    <button id="summarize-btn" class="action-btn summarize-btn">
+                        <span class="btn-icon">📝</span>
+                        <span class="btn-text">Summarize</span>
+                        <span class="btn-loader loader hidden"></span>
+                    </button>
+
+                    <button id="translate-btn" class="action-btn translate-btn">
+                        <span class="btn-icon">🌐</span>
+                        <span class="btn-text">Translate</span>
+                        <span class="btn-loader loader hidden"></span>
+                    </button>
+
+                    <button id="load-chat-btn" class="action-btn load-chat-btn">
+                        <span class="btn-icon">💬</span>
+                        <span class="btn-text">Load to Chat</span>
+                        <span class="btn-loader loader hidden"></span>
+                    </button>
+                </div>
+
+                <!-- Error Display -->
+                <div id="main-error" class="error-panel hidden">
+                    <span class="error-icon">⚠️</span>
+                    <span id="main-error-msg"></span>
+                </div>
+            </section>
+
+            <!-- Results Panel -->
+            <section id="results-section" class="hidden">
+                <h2>Results</h2>
+                <p class="section-desc">Output from selected operations.</p>
+
+                <!-- Summarization Results -->
+                <div id="summarize-results" class="result-group hidden">
+                    <h3 class="result-group-title">📝 Summary</h3>
                     
                     <div class="result-card">
                         <div class="result-header">
@@ -101,62 +108,11 @@
                         </div>
                         <p id="medium-summary-result" class="result-content"></p>
                     </div>
-
-                    <!-- Load to Chat Button -->
-                    <button id="load-to-chat-btn" class="secondary-btn">
-                        <span class="btn-icon">💬</span>
-                        Load Article to Chat
-                    </button>
                 </div>
 
-                <!-- Error Display -->
-                <div id="summarize-error" class="error-panel hidden">
-                    <span class="error-icon">⚠️</span>
-                    <span id="summarize-error-msg"></span>
-                </div>
-            </section>
-
-            <!-- Translation Section -->
-            <section id="translate" class="tab-content">
-                <h2>News Translation</h2>
-                <p class="section-desc">Translate news content between English and Bahasa Melayu while preserving formal tone.</p>
-
-                <!-- Language Selectors -->
-                <div class="language-selectors">
-                    <div class="lang-selector">
-                        <label for="source-lang">From</label>
-                        <select id="source-lang">
-                            <option value="en">English</option>
-                            <option value="bm">Bahasa Melayu</option>
-                        </select>
-                    </div>
-                    <div class="lang-swap">
-                        <button id="swap-langs-btn" title="Swap languages">⇄</button>
-                    </div>
-                    <div class="lang-selector">
-                        <label for="target-lang">To</label>
-                        <select id="target-lang">
-                            <option value="bm">Bahasa Melayu</option>
-                            <option value="en">English</option>
-                        </select>
-                    </div>
-                </div>
-
-                <!-- Input Text -->
-                <div class="input-group">
-                    <label for="translate-input">Text to Translate</label>
-                    <textarea id="translate-input" rows="8" placeholder="Enter or paste text to translate..."></textarea>
-                </div>
-
-                <!-- Translate Button -->
-                <button id="translate-btn" class="action-btn">
-                    <span class="btn-text">Translate</span>
-                    <span class="btn-loader loader hidden"></span>
-                </button>
-
-                <!-- Results Display -->
-                <div id="translate-results" class="results-panel hidden">
-                    <h3>Translation Result</h3>
+                <!-- Translation Results -->
+                <div id="translate-results" class="result-group hidden">
+                    <h3 class="result-group-title">🌐 Translation</h3>
                     
                     <div class="result-card">
                         <div class="result-header">
@@ -174,17 +130,11 @@
                         <p id="maintained-tone-result" class="result-content"></p>
                     </div>
                 </div>
-
-                <!-- Error Display -->
-                <div id="translate-error" class="error-panel hidden">
-                    <span class="error-icon">⚠️</span>
-                    <span id="translate-error-msg"></span>
-                </div>
             </section>
 
-            <!-- Chat Section -->
-            <section id="chat" class="tab-content">
-                <h2>Article Chat</h2>
+            <!-- Chat Panel -->
+            <section id="chat-section" class="hidden">
+                <h2>Chat with Article</h2>
                 <p class="section-desc">Ask questions about your loaded article and get AI-powered answers.</p>
 
                 <!-- Session Info -->
@@ -192,40 +142,6 @@
                     <span class="session-status">🟢 Session Active</span>
                     <span id="session-id-display" class="session-id"></span>
                     <button id="clear-session-btn" class="icon-btn" title="Clear session">🗑️</button>
-                </div>
-
-                <!-- Load Article Panel -->
-                <div id="chat-load-panel" class="chat-load-panel">
-                    <p class="panel-desc">Load an article to start chatting. You can use the summarization input or paste text here.</p>
-                    
-                    <div class="input-tabs">
-                        <button class="input-tab-btn active" data-chat-input="url">URL</button>
-                        <button class="input-tab-btn" data-chat-input="file">File Upload</button>
-                        <button class="input-tab-btn" data-chat-input="text">Paste Text</button>
-                    </div>
-
-                    <!-- URL Input -->
-                    <div class="input-panel active" id="chat-url-panel">
-                        <label for="chat-article-url">Article URL</label>
-                        <input type="url" id="chat-article-url" placeholder="https://example.com/news/article" />
-                    </div>
-
-                    <!-- File Upload -->
-                    <div class="input-panel" id="chat-file-panel">
-                        <label for="chat-article-file">Upload File (PDF, DOCX, TXT)</label>
-                        <input type="file" id="chat-article-file" accept=".pdf,.docx,.txt" />
-                    </div>
-
-                    <!-- Text Paste -->
-                    <div class="input-panel" id="chat-text-panel">
-                        <label for="chat-article-text">Paste Article Text</label>
-                        <textarea id="chat-article-text" rows="6" placeholder="Paste article text here..."></textarea>
-                    </div>
-
-                    <button id="chat-load-btn" class="action-btn">
-                        <span class="btn-text">Load Article</span>
-                        <span class="btn-loader loader hidden"></span>
-                    </button>
                 </div>
 
                 <!-- Chat Window -->
