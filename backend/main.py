@@ -11,6 +11,8 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+import os
 
 from backend.config import APP_NAME, APP_VERSION, DEBUG
 from backend.routers.summarize import router as summarize_router
@@ -65,12 +67,16 @@ app.include_router(chat_router)
 
 @app.get("/", tags=["root"])
 async def root():
-    """Root endpoint returning basic info."""
-    return {
-        "name": APP_NAME,
-        "version": APP_VERSION,
-        "description": "AI-powered tool for summarizing, translating, and chatting about news articles.",
-    }
+    """Root endpoint serving the frontend HTML."""
+    from fastapi.responses import FileResponse
+    frontend_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend", "index.html")
+    return FileResponse(frontend_path)
+
+
+# Mount static files for frontend assets (CSS, JS)
+frontend_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend")
+if os.path.exists(frontend_dir):
+    app.mount("/static", StaticFiles(directory=frontend_dir), name="static")
 
 
 @app.get("/health", tags=["health"])
