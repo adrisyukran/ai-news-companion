@@ -50,7 +50,7 @@ class SummarizerService:
     """
     
     # System prompt for summarization (prevents hallucinations)
-    SYSTEM_PROMPT = """You are a precise news summarizer. Your task is to summarize articles STRICTLY based on the provided content. 
+    SYSTEM_PROMPT = """You are a precise news summarizer. Your task is to summarize articles STRICTLY based on the provided content.
 
 IMPORTANT RULES:
 1. ONLY use information explicitly stated in the article
@@ -58,6 +58,8 @@ IMPORTANT RULES:
 3. NEVER guess or infer information not supported by the article
 4. Use neutral, factual language typical of news reporting
 5. Focus on key facts: who, what, when, where, why, and how
+6. IGNORE advertisements, sponsored content, promotions, navigation menus, sidebar content, newsletter signup prompts, social media links, and other out-of-context elements
+7. Focus ONLY on the main article content
 
 If the article does not contain enough information for a particular summary type, clearly state what information is missing rather than inventing details."""
     
@@ -82,21 +84,74 @@ ARTICLE:
 
 MEDIUM SUMMARY (3-5 lines):"""
 
-    HEADLINE_PROMPT = """Based on the following article, create a SINGLE COMPELLING HEADLINE.
-The headline MUST be non-empty (at least 1 character) and should be news-style, informative, and engaging.
-If you cannot create a headline from the article content, respond with a brief descriptive phrase.
+    HEADLINE_PROMPT = """You are a professional news editor with 20+ years of experience at major news organizations. Your task is to create a compelling, factual headline for the article below.
+
+CRITICAL OUTPUT RULES - FOLLOW EXACTLY:
+- Output ONLY the headline text - absolutely NOTHING else
+- Do NOT include quotation marks, colons, labels, brackets, or any prefix/suffix
+- Do NOT explain your reasoning or add any commentary
+- Do NOT output phrases like "Headline:", "News:", "Title:", or "Here is the headline:"
+- Your entire response must be ONLY the headline itself
+
+STRICT HEADLINE REQUIREMENTS:
+- Must be a proper, professional news headline (6-14 words)
+- Must start with a capital letter
+- Must use active voice when possible (e.g., "Company Launches Product" not "Product Launched by Company")
+- Must be specific and informative - include key entities (names, places, organizations) when available
+- Must NOT be a question
+- Must NOT use generic phrases like "Article about...", "Story on...", "News regarding..."
+- Must NOT use clickbait language like "You Won't Believe...", "Shocking...", "Amazing..."
+- NO quotation marks, colons, semicolons, or trailing punctuation (periods, exclamation marks)
+
+GENERIC WORDS TO AVOID - these make headlines meaningless:
+- "Something", "something new", "something big"
+- "Latest", "recent", "new" (unless paired with specific subject)
+- Standalone "News", "Story", "Article", "Update", "Report"
+- "Discusses", "talks about", "looks at" (weak verbs)
+
+STRONG HEADLINE VERBS TO USE:
+- Launches, Unveils, Announces, Reveals, Introduces
+- Expands, Acquires, Partners, Invests, Commits
+- Discovers, Develops, Creates, Achieves, Breaks
+- Faces, Confronts, Addresses, Tackles, Overcomes
+- Rises, Falls, Surges, Drops, Rebounds (for markets/data)
+
+GOOD HEADLINE EXAMPLES (study these patterns):
+- "Tech Giant Unveils Revolutionary AI Assistant for Healthcare"
+- "Global Markets Rally as Inflation Shows Signs of Cooling"
+- "Scientists Discover Breakthrough Treatment for Rare Disease"
+- "Electric Vehicle Sales Surge 40 Percent in Third Quarter"
+- "Major Automaker Announces All-Electric Lineup by 2030"
+- "Researchers Develop New Battery Technology for Grid Storage"
+- "Federal Reserve Holds Interest Rates Steady Amid Economic Uncertainty"
+- "Startup Raises $500 Million Series F for AI-Powered Drug Discovery"
+- "Climate Summit Reaches Historic Agreement on Emissions Reduction"
+- "Tech Company Faces Antitrust Lawsuit Over Market Dominance"
+
+BAD HEADLINE EXAMPLES (NEVER produce these):
+- "News:" or "News Summary" (generic label)
+- "What is AI?" (question format)
+- "A summary of the article" (vague, meaningless)
+- "Headline: Breaking News" (includes label)
+- "The company announced something new today" (too vague)
+- "Latest developments in the story" (no substance)
+- "Article discusses important topic" (generic phrase)
+- "Something big is happening" (meaningless clickbait)
+- "You won't believe this news" (clickbait)
+- "Breaking: Something amazing just happened" (vague clickbait)
 
 ARTICLE:
 ---
 {article_text}
 ---
 
-HEADLINE (single line only, no quotation marks, MUST be non-empty):"""
+Remember: You are a professional editor. Create ONE compelling, specific headline. Output ONLY the headline text with no additional content."""
 
     # Prompt for summarizing individual chunks (first stage of chunked summarization)
     CHUNK_SUMMARY_PROMPT = """Summarize the following article excerpt in 2-3 sentences.
 Focus ONLY on the key information in this excerpt.
 Do NOT add information not present in the excerpt.
+IGNORE any advertisements, sponsored content, or navigation elements.
 
 EXCERPT:
 ---
@@ -109,7 +164,7 @@ SUMMARY:"""
     COMBINED_SUMMARY_PROMPT = """Based on the following partial summaries of an article, create the final summaries.
 Each partial summary covers a different section of the article.
 Combine ALL information from all partial summaries.
-IMPORTANT: The HEADLINE MUST be non-empty (at least 1 character).
+IMPORTANT: The HEADLINE MUST follow strict requirements below.
 
 PARTIAL SUMMARIES:
 ---
@@ -124,8 +179,13 @@ Now create the final summaries:
 2. MEDIUM SUMMARY (3-5 lines with more detail):
 [Your medium summary here]
 
-3. HEADLINE (single compelling headline, no quotation marks, MUST be non-empty):
-[Your headline here]"""
+3. HEADLINE - STRICT REQUIREMENTS:
+   - Must be a proper news headline (NOT a question, NOT a phrase)
+   - Must be 8-12 words maximum
+   - Must start with a capital letter
+   - Must use active voice
+   - NO quotation marks or colons
+   [Your headline here]"""
 
     def __init__(
         self,
@@ -160,6 +220,87 @@ Now create the final summaries:
         """
         # Simple estimation: ~4 characters per token for English
         return len(text) // 4
+    
+    def _preprocess_article_text(self, text: str) -> str:
+        """
+        Preprocess article text by removing advertisements and cleaning up formatting.
+        
+        Uses regular expressions to remove common ad patterns and excessive whitespace.
+        
+        Args:
+            text: Raw article text
+            
+        Returns:
+            Cleaned article text with ads removed
+        """
+        import re
+        
+        # Remove common advertisement patterns
+        ad_patterns = [
+            # Advertisement labels
+            r'(?i)^\s*advertisement\s*$',
+            r'(?i)^\s*ad\s*$',
+            r'(?i)^\s*sponsored\s*$',
+            r'(?i)^\s*sponsored content\s*$',
+            r'(?i)^\s*partner content\s*$',
+            r'(?i)^\s*promoted\s*$',
+            r'(?i)^\s*promotion\s*$',
+            
+            # Newsletter/signup prompts
+            r'(?i)^\s*subscribe to our newsletter\s*$',
+            r'(?i)^\s*sign up for our newsletter\s*$',
+            r'(?i)^\s*get the latest news\s*$',
+            r'(?i)^\s*join our mailing list\s*$',
+            r'(?i)^\s*email newsletter\s*$',
+            r'(?i)^\s*subscribe now\s*$',
+            r'(?i)^\s*stay informed\s*$',
+            
+            # Social media/navigation elements
+            r'(?i)^\s*share this article\s*$',
+            r'(?i)^\s*share on (twitter|facebook|linkedin|reddit)\s*$',
+            r'(?i)^\s*follow us on\s*$',
+            r'(?i)^\s*related articles?\s*$',
+            r'(?i)^\s*read more\s*$',
+            r'(?i)^\s*continue reading\s*$',
+            
+            # Generic ad-like patterns
+            r'(?i)^\s*\[ad(vertisement)?\]\s*$',
+            r'(?i)^\s*from our sponsors\s*$',
+            r'(?i)^\s*special offer\s*$',
+            r'(?i)^\s*limited time offer\s*$',
+        ]
+        
+        cleaned_text = text
+        
+        # Remove each ad pattern
+        for pattern in ad_patterns:
+            cleaned_text = re.sub(pattern, '', cleaned_text, flags=re.MULTILINE)
+        
+        # Remove lines that are primarily promotional (contain certain keywords)
+        promotional_keywords = [
+            r'(?i)^.*buy now.*$',
+            r'(?i)^.*click here to.*$',
+            r'(?i)^.*learn more about.*$',
+            r'(?i)^.*get started today.*$',
+            r'(?i)^.*limited time.*$',
+            r'(?i)^.*act now.*$',
+            r'(?i)^.*don\'t miss.*$',
+            r'(?i)^.*exclusive offer.*$',
+        ]
+        
+        for pattern in promotional_keywords:
+            cleaned_text = re.sub(pattern, '', cleaned_text, flags=re.MULTILINE)
+        
+        # Clean up excessive blank lines (replace 3+ consecutive newlines with 2)
+        cleaned_text = re.sub(r'\n{3,}', '\n\n', cleaned_text)
+        
+        # Clean up lines with only whitespace
+        cleaned_text = re.sub(r'^\s+$', '', cleaned_text, flags=re.MULTILINE)
+        
+        # Strip leading/trailing whitespace from the entire text
+        cleaned_text = cleaned_text.strip()
+        
+        return cleaned_text
     
     def _chunk_text(self, text: str) -> List[str]:
         """
@@ -214,8 +355,11 @@ Now create the final summaries:
         """
         logger.info(f"Processing chunk {chunk_index + 1}")
         
+        # Preprocess chunk to remove any ad patterns
+        cleaned_chunk = self._preprocess_article_text(chunk)
+        
         response = await self.llm_service.complete(
-            prompt=self.CHUNK_SUMMARY_PROMPT.format(excerpt_text=chunk),
+            prompt=self.CHUNK_SUMMARY_PROMPT.format(excerpt_text=cleaned_chunk),
             system_prompt=self.SYSTEM_PROMPT,
             temperature=0.3,  # Lower temperature for more factual summaries
             max_tokens=200,
@@ -397,16 +541,69 @@ Now create the final summaries:
         )
         headline = headline_response.content.strip()
         
-        # Fallback for empty headline - MUST never return empty string
-        if not headline or not headline.strip():
-            # Use first few words of short_summary as fallback headline
-            if short_summary and short_summary.strip():
-                words = short_summary.split()[:8]
-                headline = ' '.join(words) + ('...' if len(short_summary.split()) > 8 else '')
-            else:
-                headline = "News Summary"
+        # Post-process headline validation
+        headline = self._validate_headline(headline, short_summary)
         
         return short_summary, medium_summary, headline
+    
+    def _validate_headline(self, headline: str, short_summary: str) -> str:
+        """
+        Validate and clean up generated headline.
+        
+        Args:
+            headline: Generated headline
+            short_summary: Short summary as fallback source
+            
+        Returns:
+            Validated headline
+        """
+        # Strip any leading/trailing whitespace
+        headline = headline.strip()
+        
+        # Remove any残留 from LLM output (labels, prefixes that LLM might add)
+        # Remove common prefixes LLM might accidentally include
+        prefixes_to_remove = [
+            "headline:", "headline", "headline:", 
+            "here's the headline:", "here is the headline:",
+            "title:", "title",
+            "news:", "news",
+        ]
+        lower_headline = headline.lower()
+        for prefix in prefixes_to_remove:
+            if lower_headline.startswith(prefix):
+                headline = headline[len(prefix):].strip()
+                lower_headline = headline.lower()
+        
+        # Remove surrounding quotation marks
+        if (headline.startswith('"') and headline.endswith('"')) or \
+           (headline.startswith("'") and headline.endswith("'")):
+            headline = headline[1:-1]
+        
+        # Remove trailing colons
+        headline = headline.rstrip(':')
+        
+        # Check if headline is too short (< 3 chars after cleaning) - generate proper fallback
+        if len(headline) < 3:
+            # Generate a fallback headline from short_summary, don't just prepend "News: "
+            if short_summary and short_summary.strip():
+                words = short_summary.split()[:8]
+                headline = ' '.join(words)
+                if len(short_summary.split()) > 8:
+                    headline = headline.rstrip('.') + '...'
+            else:
+                headline = "News Story"
+        
+        # Final fallback for empty headline - MUST never return empty string
+        if not headline or not headline.strip():
+            if short_summary and short_summary.strip():
+                words = short_summary.split()[:8]
+                headline = ' '.join(words)
+                if len(short_summary.split()) > 8:
+                    headline = headline.rstrip('.') + '...'
+            else:
+                headline = "News Story"
+        
+        return headline.strip()
     
     async def summarize(self, source: str, source_type: str = "text") -> Tuple[str, str, str]:
         """
@@ -428,6 +625,12 @@ Now create the final summaries:
             
             if not article_text or not article_text.strip():
                 raise SummarizerError("No text content extracted from the source")
+            
+            # Preprocess the text to remove ads and clean up formatting
+            article_text = self._preprocess_article_text(article_text)
+            
+            if not article_text or not article_text.strip():
+                raise SummarizerError("No text content remaining after preprocessing")
             
             logger.info(f"Processing article ({len(article_text)} characters)")
             
