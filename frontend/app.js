@@ -119,6 +119,52 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+/**
+ * Clear all results panels and reset operation state
+ */
+function clearResults() {
+    // Hide results sections
+    document.getElementById('summarize-results')?.classList.add('hidden');
+    document.getElementById('translate-results')?.classList.add('hidden');
+    document.getElementById('results-section')?.classList.add('hidden');
+    
+    // Clear result content
+    const headlineEl = document.getElementById('headline-result');
+    if (headlineEl) headlineEl.textContent = '';
+    
+    const shortSummaryEl = document.getElementById('short-summary-result');
+    if (shortSummaryEl) shortSummaryEl.textContent = '';
+    
+    const mediumSummaryEl = document.getElementById('medium-summary-result');
+    if (mediumSummaryEl) mediumSummaryEl.textContent = '';
+    
+    const translatedTextEl = document.getElementById('translated-text-result');
+    if (translatedTextEl) translatedTextEl.textContent = '';
+    
+    const maintainedToneEl = document.getElementById('maintained-tone-result');
+    if (maintainedToneEl) maintainedToneEl.textContent = '';
+    
+    // Clear operation results state
+    state.operationResults.summarize = null;
+    state.operationResults.translate = null;
+}
+
+/**
+ * Clear chat UI and reset chat state
+ */
+function clearChatUI() {
+    const chatMessages = document.getElementById('chat-messages');
+    if (chatMessages) {
+        chatMessages.innerHTML = '';
+    }
+    
+    // Hide chat section
+    const chatSection = document.getElementById('chat-section');
+    if (chatSection) {
+        chatSection.classList.add('hidden');
+    }
+}
+
 // ============================================
 // Input Panel Switching
 // ============================================
@@ -190,16 +236,15 @@ async function handleSummarize() {
     try {
         const text = await textPromise;
         
+        // Clear previous results before processing
+        clearResults();
+        
         // Store article text for later use
         state.articleText = text;
         state.articleSource = { type: state.currentInputType, value: state.currentInputType === 'file' ? document.getElementById('article-file').files[0].name : 'inline' };
         
         // Set loading state
         setButtonLoading('summarize-btn', true);
-        
-        // Hide previous results
-        document.getElementById('summarize-results').classList.add('hidden');
-        document.getElementById('results-section').classList.add('hidden');
         
         // Call summarize API
         const formData = new FormData();
@@ -250,16 +295,15 @@ async function handleTranslate() {
     try {
         const text = await textPromise;
         
+        // Clear previous results before processing
+        clearResults();
+        
         // Store article text for later use
         state.articleText = text;
         state.articleSource = { type: state.currentInputType, value: state.currentInputType === 'file' ? document.getElementById('article-file').files[0].name : 'inline' };
         
         // Set loading state
         setButtonLoading('translate-btn', true);
-        
-        // Hide previous results
-        document.getElementById('translate-results').classList.add('hidden');
-        document.getElementById('results-section').classList.add('hidden');
         
         // Default to English -> Bahasa Melayu
         const sourceLang = 'en';
@@ -317,6 +361,10 @@ async function handleLoadChat() {
     try {
         const text = await textPromise;
         
+        // Clear previous results and chat UI before loading new article
+        clearResults();
+        clearChatUI();
+        
         // Store article text for later use
         state.articleText = text;
         const sourceType = state.currentInputType;
@@ -326,8 +374,8 @@ async function handleLoadChat() {
         // Set loading state
         setButtonLoading('load-chat-btn', true);
         
-        // Generate or reuse session ID
-        let sessionId = state.sessionId || generateUUID();
+        // Always generate a new session ID for a fresh start
+        let sessionId = generateUUID();
         
         const response = await fetch(`${API_BASE_URL}/api/chat/load`, {
             method: 'POST',
@@ -393,10 +441,13 @@ function addChatMessage(role, content) {
     
     const avatar = role === 'assistant' ? '🤖' : '👤';
     
+    // Parse markdown to HTML using marked.js
+    const htmlContent = marked.parse(content);
+    
     messageDiv.innerHTML = `
         <div class="message-avatar">${avatar}</div>
         <div class="message-content">
-            <p>${escapeHtml(content)}</p>
+            ${htmlContent}
         </div>
     `;
     
@@ -517,6 +568,15 @@ function initEventListeners() {
         if (e.key === 'Enter') {
             handleChatSend();
         }
+    });
+    
+    // Input change listeners - clear results when input changes
+    document.getElementById('article-file')?.addEventListener('change', () => {
+        clearResults();
+    });
+    
+    document.getElementById('article-text')?.addEventListener('input', () => {
+        clearResults();
     });
 }
 

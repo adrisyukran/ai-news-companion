@@ -442,6 +442,80 @@ body {
     border: 1px solid var(--border-color);
 }
 
+/* Markdown styles for chat messages */
+.chat-message .message-content strong {
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
+.chat-message.assistant .message-content strong {
+    color: var(--primary-dark);
+}
+
+.chat-message .message-content ul,
+.chat-message .message-content ol {
+    margin: 8px 0;
+    padding-left: 20px;
+}
+
+.chat-message .message-content li {
+    margin: 4px 0;
+    line-height: 1.5;
+}
+
+.chat-message .message-content code {
+    background: var(--bg-color);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.9em;
+}
+
+.chat-message .message-content pre {
+    background: var(--bg-color);
+    padding: 12px;
+    border-radius: var(--radius-sm);
+    overflow-x: auto;
+    margin: 8px 0;
+}
+
+.chat-message .message-content pre code {
+    background: transparent;
+    padding: 0;
+}
+
+.chat-message .message-content blockquote {
+    border-left: 3px solid var(--primary-color);
+    padding-left: 12px;
+    margin: 8px 0;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.chat-message .message-content h1,
+.chat-message .message-content h2,
+.chat-message .message-content h3,
+.chat-message .message-content h4,
+.chat-message .message-content h5,
+.chat-message .message-content h6 {
+    font-size: 1.1em;
+    font-weight: 600;
+    margin: 12px 0 8px;
+    color: var(--primary-color);
+}
+
+.chat-message .message-content p {
+    margin: 8px 0;
+}
+
+.chat-message .message-content p:first-child {
+    margin-top: 0;
+}
+
+.chat-message .message-content p:last-child {
+    margin-bottom: 0;
+}
+
 .chat-input-container {
     display: flex;
     gap: 12px;
