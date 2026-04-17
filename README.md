@@ -96,17 +96,29 @@ This ensures context continuity while respecting LLM context windows.
 
 The translation system uses a two-stage approach for efficient and accurate translations:
 
-**Stage 1: LibreTranslate API**
-- Primary translation via LibreTranslate open-source API
+**Stage 1: ArgosTranslate (Offline/Open-Source)**
+- Primary translation via ArgosTranslate library
 - Supports English ↔ Bahasa Melayu bidirectional translation
+- Runs completely offline without external API calls
 - More efficient than full LLM generation for translation tasks
 
-**Stage 2: LLM Quality Check**
-- Minimal LLM-based review of translated text
-- Scans for errors, awkward phrasing, or mistranslations
-- Ensures quality without the cost of full LLM translation
+**Stage 2: LLM Refinement**
+- Secondary LLM-based refinement of translated text
+- Fixes spelling, grammar, and phrasing issues
+- Ensures natural, fluent output quality
 
-This approach balances efficiency and quality for translation operations.
+**DBP Standards for Bahasa Melayu**:
+- When translating to Bahasa Melayu, refinement follows **Dewan Bahasa dan Pustaka (DBP)** standards
+- Ensures formal and accurate language usage
+- Avoids Indonesian influence where possible
+- Produces professionally-appropriate output
+
+**Auto-Detection**:
+- The system automatically detects the source language (English or Bahasa Melayu)
+- Translates to the opposite language automatically
+- No manual language direction selection required
+
+This approach balances efficiency, quality, and linguistic accuracy for Malaysian news content.
 
 ### LLM Processing
 
@@ -157,17 +169,27 @@ User Question
 │ Query Embedding│ ──▶ │ Chroma Vector│ ──▶ │ Top-k Chunks  │
 │  (MiniLM-L6)   │     │   Search     │     │  Retrieved    │
 └───────────────┘     └──────────────┘     └───────────────┘
-                                                │
-                                                ▼
-                                    ┌───────────────────────┐
-                                    │ LLM generates answer  │
-                                    │ using retrieved context│
-                                    └───────────────────────┘
+                                                 │
+                                                 ▼
+                                     ┌───────────────────────┐
+                                     │ LLM generates answer  │
+                                     │ using retrieved context│
+                                     └───────────────────────┘
 ```
 
 - **Embedding Model**: `sentence-transformers/all-MiniLM-L6-v2` ([`EMBEDDING_MODEL`](backend/config.py:26))
-- **Vector Store**: ChromaDB with in-memory storage
+- **Vector Store**: ChromaDB with versioned collections for session isolation
 - **Retrieval**: Top-k (k=5) most relevant chunks
+
+**Session Isolation**:
+- Each article load creates a new versioned collection
+- Loading a new article completely clears the previous context
+- Prevents data leakage between articles in different sessions
+
+**Clean Output**:
+- Internal chunk markers (`【Chunk X】`) are removed from final responses
+- Chat responses support full markdown rendering (bold, lists, code blocks)
+- Uses `marked.js` for markdown parsing in the frontend
 
 ### Output Formatting
 
@@ -268,8 +290,8 @@ After starting the backend, open [`frontend/index.html`](frontend/index.html) in
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/api/summarize` | POST | Summarize article from text or file |
-| `/api/translate` | POST | Translate text between English and Bahasa Melayu (via LibreTranslate) |
-| `/api/chat/load` | POST | Load article into RAG chat session ("Load to Chat" operation) |
-| `/api/chat/ask` | POST | Ask question about loaded article |
+| `/api/translate` | POST | Translate text auto-detecting English ↔ Bahasa Melayu (via ArgosTranslate + LLM refinement) |
+| `/api/chat/load` | POST | Load article into RAG chat session with versioned collection isolation |
+| `/api/chat/ask` | POST | Ask question about loaded article (returns markdown-formatted response) |
 | `/health` | GET | Health check endpoint |
 | `/` | GET | Root endpoint with API info |
