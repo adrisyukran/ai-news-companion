@@ -475,14 +475,9 @@ Now create the final summaries:
         if not medium_summary:
             medium_summary = short_summary
         
-        # Final fallback for empty headline - MUST never return empty string
-        if not headline or not headline.strip():
-            # Use first few words of short_summary as fallback headline
-            if short_summary and short_summary.strip():
-                words = short_summary.split()[:8]
-                headline = ' '.join(words) + ('...' if len(short_summary.split()) > 8 else '')
-            else:
-                headline = "News Summary"
+        # Validate headline using the robust validation logic
+        # This ensures consistency with direct summarization path
+        headline = self._validate_headline(headline, short_summary)
         
         return short_summary, medium_summary, headline
     
@@ -546,9 +541,166 @@ Now create the final summaries:
         
         return short_summary, medium_summary, headline
     
+    def _is_generic_headline(self, headline: str) -> bool:
+        """
+        Check if a headline is too generic or meaningless.
+        
+        Args:
+            headline: Headline to check
+            
+        Returns:
+            True if headline is generic/meaningless, False otherwise
+        """
+        if not headline or not headline.strip():
+            return True
+        
+        lower = headline.lower().strip()
+        
+        # Generic words/phrases that make headlines meaningless
+        generic_patterns = [
+            # Pure labels
+            r'^news[:\s]*$',
+            r'^headline[:\s]*$',
+            r'^title[:\s]*$',
+            r'^summary[:\s]*$',
+            r'^story[:\s]*$',
+            r'^article[:\s]*$',
+            r'^update[:\s]*$',
+            r'^report[:\s]*$',
+            r'^breaking news[:\s]*$',
+            r'^news story[:\s]*$',
+            r'^news summary[:\s]*$',
+            r'^news article[:\s]*$',
+            
+            # Vague phrases
+            r'^a?n?\s*(summary|article|story|report|update)\s*(of|on|about)?\s*the?\s*(article|story|news)?$',
+            r'^article about',
+            r'^story about',
+            r'^news about',
+            r'^report on',
+            r'^update on',
+            r'^something (new|big|important)',
+            r'^latest (news|update|developments)',
+            r'^developments? (in|on)',
+            r'^discusses',
+            r'^talks? about',
+            r'^looks? at',
+            r'^covers',
+            
+            # Clickbait patterns
+            r'^you (won\'t|will)\s*(not)?\s*believe',
+            r'^shocking',
+            r'^amazing',
+            r'^incredible',
+            r'^(this|that)\s*is',
+            
+            # Question format
+            r'^what\s+(is|are|was|were)',
+            r'^how\s+(to|does|did|can|could)',
+            r'^why\s+(is|are|was|were|does|did)',
+            r'^when\s+(is|are|was|were)',
+            r'^who\s+(is|are|was|were)',
+            r'\?$',
+        ]
+        
+        import re
+        for pattern in generic_patterns:
+            if re.search(pattern, lower):
+                return True
+        
+        # Check if headline is too short (less than 3 words)
+        words = headline.split()
+        if len(words) < 3:
+            return True
+        
+        # Check if headline contains only generic words
+        generic_words = {'the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been',
+                        'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will',
+                        'would', 'could', 'should', 'may', 'might', 'must', 'shall',
+                        'can', 'need', 'dare', 'ought', 'used', 'to', 'of', 'in',
+                        'for', 'on', 'with', 'at', 'by', 'from', 'as', 'into',
+                        'through', 'during', 'before', 'after', 'above', 'below',
+                        'between', 'under', 'again', 'further', 'then', 'once',
+                        'news', 'story', 'article', 'report', 'update', 'summary'}
+        
+        content_words = [w.lower().strip('.,!?;:"\'') for w in words
+                        if w.lower().strip('.,!?;:"\'') not in generic_words]
+        
+        # If less than 2 content words, it's too generic
+        if len(content_words) < 2:
+            return True
+        
+        return False
+    
+    def _extract_fallback_headline(self, short_summary: str) -> str:
+        """
+        Extract a meaningful headline from a short summary.
+        
+        Args:
+            short_summary: Short summary text
+            
+        Returns:
+            A meaningful headline extracted from the summary
+        """
+        if not short_summary or not short_summary.strip():
+            return "News Story"
+        
+        # Try to extract the first sentence or meaningful phrase
+        summary = short_summary.strip()
+        
+        # Split into sentences
+        import re
+        sentences = re.split(r'[.!?]+', summary)
+        sentences = [s.strip() for s in sentences if s.strip()]
+        
+        if sentences:
+            # Use the first sentence as the base
+            first_sentence = sentences[0].strip()
+            
+            # Clean up: remove leading conjunctions or articles
+            first_sentence = re.sub(r'^(and|but|or|so|yet|the|a|an)\s+', '',
+                                   first_sentence, flags=re.IGNORECASE)
+            
+            # Take first 10-12 words for headline length
+            words = first_sentence.split()
+            headline_words = words[:12]
+            headline = ' '.join(headline_words)
+            
+            # Capitalize first letter of each major word (title case-ish)
+            # But keep articles/prepositions lowercase unless first word
+            minor_words = {'a', 'an', 'the', 'in', 'on', 'at', 'to', 'for', 'of', 'and', 'or', 'but', 'is', 'are', 'was', 'were'}
+            title_words = []
+            for i, word in enumerate(headline_words):
+                if i == 0 or word.lower() not in minor_words:
+                    title_words.append(word.capitalize() if len(word) > 2 else word.upper() if len(word) <= 2 else word.capitalize())
+                else:
+                    title_words.append(word.lower())
+            headline = ' '.join(title_words)
+            
+            # Ensure it starts with a capital letter
+            if headline and headline[0].islower():
+                headline = headline[0].upper() + headline[1:]
+            
+            # Remove trailing punctuation
+            headline = headline.rstrip('.,!?;:')
+            
+            # Ensure minimum length
+            if len(headline.split()) < 3 and len(sentences) > 1:
+                # Try combining first two sentences
+                combined = ' '.join(sentences[:2])
+                words = combined.split()[:12]
+                headline = ' '.join(words).rstrip('.,!?;:')
+            
+            return headline if headline.strip() else "News Story"
+        
+        # Fallback: use first 10 words of summary
+        words = summary.split()[:10]
+        headline = ' '.join(words).rstrip('.,!?;:')
+        return headline if headline.strip() else "News Story"
+    
     def _validate_headline(self, headline: str, short_summary: str) -> str:
         """
-        Validate and clean up generated headline.
+        Validate and clean up generated headline with robust fallback logic.
         
         Args:
             headline: Generated headline
@@ -563,10 +715,11 @@ Now create the final summaries:
         # Remove any残留 from LLM output (labels, prefixes that LLM might add)
         # Remove common prefixes LLM might accidentally include
         prefixes_to_remove = [
-            "headline:", "headline", "headline:", 
+            "headline:", "headline", "headline:",
             "here's the headline:", "here is the headline:",
             "title:", "title",
             "news:", "news",
+            "breaking:", "breaking news:",
         ]
         lower_headline = headline.lower()
         for prefix in prefixes_to_remove:
@@ -579,31 +732,35 @@ Now create the final summaries:
            (headline.startswith("'") and headline.endswith("'")):
             headline = headline[1:-1]
         
-        # Remove trailing colons
-        headline = headline.rstrip(':')
+        # Remove trailing colons, periods, and other punctuation
+        headline = headline.rstrip(':.,!?;')
         
-        # Check if headline is too short (< 3 chars after cleaning) - generate proper fallback
-        if len(headline) < 3:
-            # Generate a fallback headline from short_summary, don't just prepend "News: "
-            if short_summary and short_summary.strip():
-                words = short_summary.split()[:8]
-                headline = ' '.join(words)
-                if len(short_summary.split()) > 8:
-                    headline = headline.rstrip('.') + '...'
-            else:
-                headline = "News Story"
+        # Strip again after all cleaning
+        headline = headline.strip()
         
-        # Final fallback for empty headline - MUST never return empty string
+        # Check if headline is generic/meaningless
+        if self._is_generic_headline(headline):
+            logger.debug(f"Headline detected as generic: '{headline}'")
+            headline = ""  # Trigger fallback
+        
+        # Check if headline is too short (< 5 words) - use fallback
+        if headline and len(headline.split()) < 5:
+            logger.debug(f"Headline too short ({len(headline.split())} words): '{headline}'")
+            headline = ""  # Trigger fallback
+        
+        # Final fallback for empty, too short, or generic headline
         if not headline or not headline.strip():
-            if short_summary and short_summary.strip():
-                words = short_summary.split()[:8]
-                headline = ' '.join(words)
-                if len(short_summary.split()) > 8:
-                    headline = headline.rstrip('.') + '...'
-            else:
-                headline = "News Story"
+            headline = self._extract_fallback_headline(short_summary)
+            logger.debug(f"Using fallback headline: '{headline}'")
         
-        return headline.strip()
+        # Final cleanup: ensure no trailing punctuation or quotes
+        headline = headline.strip().rstrip('.,!?;:"\'')
+        
+        # Last resort fallback - MUST never return empty string
+        if not headline or not headline.strip():
+            headline = "News Story"
+        
+        return headline
     
     async def summarize(self, source: str, source_type: str = "text") -> Tuple[str, str, str]:
         """
